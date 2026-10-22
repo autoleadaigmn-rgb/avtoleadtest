@@ -59,7 +59,7 @@ function respond(previous,raw){
  if(!input)return base(s,'Please type a little more or choose a suggestion.',STARTERS);
  if(/^(cancel(?: my)?(?: request| appointment)?|restart|start over|back to the demo)$/i.test(input))return base(initialState(),'The unfinished request is cancelled. Previously submitted requests are unchanged. What would you like to do?',STARTERS,{action:'reset'});
  if(/^open owner view$/i.test(input))return base(s,'Opening the local preview. The protected owner dashboard is linked separately.',[],{action:'inbox'});
- if(/^try a detailed sample$/i.test(input))return respond(s,"I'm Alex Demo, alex@example.com. My 2019 Toyota Camry brakes squeal when stopping. Next weekday morning.");
+ if(/^try a detailed sample$/i.test(input))return respond(s,"I'm Alex Demo, alex@example.com. My 2019 Toyota Camry brakes squeal when stopping. No preference.");
  if(safety(input))return base(s,faq(input)+(s.phase!=='idle'?' Your unfinished request is still available.':''),['Cancel','Request service']);
  const isQuestion=/\?|^(what|when|where|how|do you|are you|can you|is it|tell me)\b/i.test(input),answer=faq(input);
  if(answer&&isQuestion&&!/\b(?:my|i have|i need)\b/i.test(input))return base(s,answer+(s.phase!=='idle'?'\n\nI’ve kept your request details.':''),s.phase==='idle'?STARTERS:(prompts[s.phase==='time'?'preferredTime':s.phase]?.[1]||['Edit details','Cancel']));
@@ -86,7 +86,7 @@ function respond(previous,raw){
 function toCsv(leads){const fields=['id','createdAt','name','contact','service','vehicle','issue','preferredTime','status'];const escape=value=>{let v=String(value??'');if(/^[=+\-@\t\r]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';};return fields.map(escape).join(',')+'\r\n'+leads.map(l=>fields.map(k=>escape(l[k])).join(',')).join('\r\n');}
 
 const TEST_POLICY='test-2026-10-22-v1';
-const TEST_ONLY_FIELDS={name:['Alex Demo'],contact:['alex@example.com'],service:['Oil & filter change','Brake inspection','Tire service','Engine diagnostics','Routine maintenance'],vehicle:['2019 Toyota Camry'],issue:['Routine service before a road trip','Brakes squeal when stopping','Tire losing air','Check engine light is on'],preferredTime:['Next weekday morning','No preference']};
+const TEST_ONLY_FIELDS={name:['Alex Demo'],contact:['alex@example.com'],service:SHOP.services,vehicle:['2019 Toyota Camry'],issue:['Routine service before a road trip','Brakes squeal when stopping','Tire losing air','Check engine light is on'],preferredTime:['Next weekday morning','No preference']};
 function isTestFixture(draft){return Object.entries(TEST_ONLY_FIELDS).every(([key,values])=>values.includes(draft[key]));}
 function intakePayload(draft,id,startedAt,consentedAt=Date.now()){return {...draft,id,startedAt,consentedAt,mode:'TEST',policy:TEST_POLICY,consent:true,site:'https://autoleadaigmn-rgb.github.io/avtoleadtest/',website:''};}
 async function submitTestRequest(endpoint,payload){
