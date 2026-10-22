@@ -14,92 +14,79 @@
 @media(prefers-reduced-motion:reduce){html,.messages{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
 
 .review-card{margin:0 0 10px 30px;border:1px solid #ccdabd;background:#fbfdf7;border-radius:10px;padding:15px;font-size:11px}.review-card>strong{font-size:9px;letter-spacing:1px;color:#6b7c5d}.review-card dl{margin:13px 0}.review-card dl>div{display:grid;grid-template-columns:60px 1fr;gap:12px;margin-bottom:8px}.review-card dt{font-size:10px;color:#849078}.review-card dd{margin:0;overflow-wrap:anywhere;font-size:11px;white-space:pre-wrap}.consent-check{display:flex;align-items:flex-start;gap:8px;padding-top:12px;border-top:1px solid #e0e7d8;font-size:10px;line-height:1.6;color:#69775d}.consent-check input{margin:3px 0 0;accent-color:#527433;width:14px;height:14px;flex-shrink:0}.review-actions{display:flex;gap:16px;align-items:center;margin-top:14px;flex-wrap:wrap}.review-actions .button{font-size:10px;min-height:35px;padding:8px 12px}.review-actions .text-button{font-size:10px}.review-error{color:#885035;font-size:10px;margin:10px 0 0}.review-error:empty{display:none}@media(max-width:760px){.review-card{margin-left:20px}.consent-check{font-size:11px}.review-card dd{font-size:12px}.review-actions .button{min-height:40px;font-size:11px}.review-actions .text-button{font-size:11px}.review-card dl>div{grid-template-columns:62px 1fr}}
+
+.product-actions{display:flex;gap:15px;flex-wrap:wrap;margin-top:24px}.product-features .process-grid{margin-top:28px}.owner-link{white-space:nowrap}#privacy p{max-width:850px;color:var(--muted);font-size:14px;line-height:1.8}@media(max-width:760px){.header nav .owner-link{display:inline-flex;font-size:11px}.header nav .nav-inbox{display:none}.product-actions .button{width:100%}}
 </style>
-  <script type="module">const SERVICES=['Oil & filter change','Brake inspection','Tire service','Engine diagnostics','Routine maintenance'];
-const STARTERS=['What services do you offer?','What are your hours?','Request service'];
+  <script type="module">// Public presentation only. Private recipients and Sheet IDs remain in Script Properties.
+const SHOP={id:'bayline-demo',name:'Bayline Auto Care',city:'Houston, TX',fictional:true,logoUrl:'',colors:{primary:'#182321',accent:'#d7fa75',background:'#f8faf6'},contact:{email:'',phone:'',address:''},hours:'Monday–Friday, 8 am–6 pm. Saturday, 9 am–1 pm. Sunday closed. US Central.',services:['Oil & filter change','Brake inspection','Tire service','Engine diagnostics','Routine maintenance'],greeting:'Hi! I’m the demo receptionist for Bayline Auto Care. Tell me what’s happening and share several details at once if you like. I’ll help prepare a request for the team. This is a fictional shop and a rules-based demo, not generative AI.',demoContact:'autolead.ai.gmn@gmail.com'};
+function validateShop(c){if(!c||!/^[a-z0-9-]{3,40}$/.test(c.id)||!c.name?.trim()||!Array.isArray(c.services)||!c.services.length||c.services.length>20)throw Error('Invalid shop configuration');for(const color of Object.values(c.colors))if(!/^#[0-9a-f]{6}$/i.test(color))throw Error('Use six-digit hex colors');if(c.logoUrl&&!/^https:\/\//.test(c.logoUrl))throw Error('Logo must use HTTPS');return c;}
+
+const SERVICES=SHOP.services;
+const STARTERS=['What services do you offer?','What are your hours?','Request service','Try a detailed sample'];
+const welcome={text:SHOP.greeting+'\n\nUse fictional details only. A request is never a confirmed appointment.',options:STARTERS};
 function initialState(){return {phase:'idle',draft:{},history:[]};}
-const welcome={text:"Hi, I’m Bayline’s demo receptionist. 👋\n\nAsk about services or hours, or let’s put together a sample service request. I’m scripted, and Bayline Auto Care is a fictional shop.",options:STARTERS};
 const base=(state,text,options=[],extra={})=>({state,text,options,...extra});
-const next=(state,phase,text,options=[])=>base({...state,phase},text,options);
+const fields=['service','vehicle','issue','preferredTime','name','contact'];
+const prompts={service:['Which service should we start with?',SERVICES],vehicle:['What is the vehicle’s year, make and model?',['Use 2019 Toyota Camry']],issue:['What should the advisor know about the vehicle?',['Routine service before a road trip','Brakes squeal when stopping','Tire losing air','Check engine light is on']],preferredTime:['Any preferred day or time? Staff must confirm availability.',['Next weekday morning','No preference']],name:['What name should the request show?',['Use Alex Demo']],contact:['What sample email or phone should the team use?',['Use alex@example.com']]};
+function contactValid(v){return /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v)||(/^[+()\d\s.-]+$/.test(v)&&v.replace(/\D/g,'').length>=10&&v.replace(/\D/g,'').length<=15);}
+function vehicleValid(v){return /\b(?:19|20)\d{2}\b/.test(v)&&v.trim().split(/\s+/).length>=3;}
+const categories=[[/\boil\b|filter/i,'Oil & filter change'],[/brake|squeal|grind.*stop|stopping/i,'Brake inspection'],[/tire|tyre|puncture|flat|wheel/i,'Tire service'],[/diagnostic|check.engine|engine.light|won.t.start|battery|overheat|engine|stall/i,'Engine diagnostics'],[/maintenance|tune.?up|routine service|road trip/i,'Routine maintenance']];
+function inferService(input){return categories.find(([r,n])=>r.test(input)&&SERVICES.includes(n))?.[1]||SERVICES.find(s=>s.toLowerCase()===input.toLowerCase())||'';}
+function safety(input){return /\b(emergency|smoke|smoking|fire|stranded|unsafe|accident|crash|brakes? (?:failed|not working))\b/i.test(input)||/is it safe|can i drive/i.test(input);}
 function faq(input){
- if(/\b(emergency|smoke|smoking|fire|stranded|unsafe|accident|crash|brakes? (?:failed|not working))\b/i.test(input))return {text:'I can’t assess a safety issue. If you or others are in immediate danger, contact emergency services. If the vehicle may be unsafe, avoid driving and arrange help from a qualified professional. This fictional shop cannot provide roadside assistance.',options:['Back to the demo','Request service']};
- if(/\b(hours?|open|close[ds]?|weekend|saturday|sunday)\b/i.test(input))return {text:'Our fictional demo hours are Monday–Friday, 8 am–6 pm, and Saturday, 9 am–1 pm. Closed Sunday. All times are US Central.\n\nYou can leave a demo request here; it does not confirm a time.',options:['Request service','What services do you offer?']};
- if(/\b(price|pricing|cost|quote|estimate|how much|dollars?)\b/i.test(input))return {text:'This demo does not quote prices. A real service advisor would need your vehicle details and a review of the work before giving an estimate. I can collect those details in a sample request.',options:['Request service','What services do you offer?']};
- if(/\b(address|located|location|where|directions|phone number)\b/i.test(input))return {text:'Bayline Auto Care is a fictional Houston, Texas shop made for this demo. It has no real street address or phone number. Only fictional tests can be sent to the AutoLead owner with your consent. No real shop receives a booking.',options:['Request service','What are your hours?']};
- if(/\b(real ai|scripted|artificial intelligence|language model|api|are you (?:ai|real|human)|chatgpt)\b/i.test(input))return {text:'This is a scripted prototype, not a live AI model. I match common topics and guide you through a service request. No paid AI API is connected.',options:STARTERS};
- if(/\b(privacy|stored|data|delete|secure|saved|owner|inbox)\b/i.test(input))return {text:'Accepted fictional tests are saved in the owner’s private Demo Requests Google Sheet and emailed to the verified AutoLead Gmail owner, with your consent. Owner view shows a local copy only. Deleting there does not delete the Sheet or email. Real personal data is rejected. Read the Test Data Notice below.',options:['Request service','Open owner view'],action:/owner|inbox/i.test(input)?'inbox':undefined};
- if(/\b(diagnos(?:e|is)|what(?:’s|'s| is) wrong|check engine|engine light|is it safe|can i drive)\b/i.test(input)&&!/diagnostics/i.test(input))return {text:'I can collect what you’re noticing, but I can’t diagnose a vehicle or tell you whether it is safe to drive. A qualified technician would need to inspect it. Would you like to create a sample diagnostics request?',options:['Engine diagnostics','What services do you offer?']};
- if(/\b(services?|repairs?|what do you do|what can you do)\b/i.test(input)&&!/request|need|want|book|schedule/i.test(input))return {text:'The demo shop offers oil & filter changes, brake inspections, tire service, engine diagnostics, and routine maintenance. Which would you like to try?',options:SERVICES};
- return null;
-}
-function inferService(input){
- if(/\boil\b|filter/i.test(input))return SERVICES[0];
- if(/brake/i.test(input))return SERVICES[1];
- if(/tire|tyre|wheel/i.test(input))return SERVICES[2];
- if(/diagnostic|engine/i.test(input))return SERVICES[3];
- if(/maintenance|tune.?up/i.test(input))return SERVICES[4];
+ if(safety(input))return 'I can’t assess whether a vehicle is safe. If anyone is in immediate danger, contact emergency services. Avoid driving a vehicle that may be unsafe and arrange qualified help. This demo cannot provide roadside assistance.';
+ if(/\b(hours?|open|close[ds]?|weekend|saturday|sunday)\b/i.test(input))return SHOP.hours+' These are fictional demo hours. Any requested time still needs staff confirmation.';
+ if(/price|pricing|cost|quote|estimate|how much/i.test(input))return 'A service advisor needs to review the vehicle and work before giving an estimate. I won’t invent prices, diagnose a problem or promise an appointment.';
+ if(/address|located|location|where are|directions|phone number/i.test(input))return SHOP.name+' is '+(SHOP.fictional?'a fictional shop concept in ':'in ')+SHOP.city+'. '+(SHOP.contact.address||'No real street address is listed for this demo.')+' '+(SHOP.contact.phone||'No real shop phone is listed.');
+ if(/real ai|scripted|language model|api|are you (ai|real|human)|chatgpt|generative/i.test(input))return 'I use local rules and structured information extraction, not a generative AI model. No paid AI API is connected.';
+ if(/privacy|stored|data|delete|secure|saved|owner|inbox/i.test(input))return 'With explicit consent, accepted fictional tests go to a separate private Google Sheet and the verified owner’s Gmail. The protected owner dashboard requires Google authorization. Local preview is only a browser copy. Real personal data is rejected. Read the Test Data Notice below.';
+ if(/what.*services|what.*offer|what can you do|what do you do/i.test(input))return 'The demo shop offers '+SERVICES.join(', ')+'. Describe the concern and I can suggest a request category for the advisor to review.';
  return '';
 }
-function contactValid(value){return /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(value)||(/^[+()\d\s.-]+$/.test(value)&&value.replace(/\D/g,'').length>=10&&value.replace(/\D/g,'').length<=15);}
-function vehicleValid(value){return /\b(?:19|20)\d{2}\b/.test(value)&&value.trim().split(/\s+/).length>=3;}
+function extractDetails(raw){
+ const text=raw.replace(/^use /i,'').trim(),d={};let m;
+ if(m=text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i))d.contact=m[0];
+ else if(m=text.match(/(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}\b/))d.contact=m[0];
+ if(m=text.match(/\b((?:19|20)\d{2})\s+(Toyota|Honda|Ford|Chevrolet|Chevy|GMC|Nissan|Hyundai|Kia|BMW|Audi|Mercedes|Volkswagen|Subaru|Mazda|Jeep|Ram|Dodge|Tesla|Lexus)\s+([A-Za-z0-9-]+)(?=\s|[,.]|$)/i))d.vehicle=m[1]+' '+m[2][0].toUpperCase()+m[2].slice(1)+' '+m[3][0].toUpperCase()+m[3].slice(1);
+ if(m=text.match(/(?:my name is|i am|i'm|name\s*[:=])\s+([a-z][a-z'-]+(?:\s+[a-z][a-z'-]+)?)(?=\s*[,.;]|\s+(?:and|my email|email|phone|with)\b|$)/i))d.name=m[1].replace(/\b\w/g,c=>c.toUpperCase());
+ if(/brakes? (?:squeal|squeak)|squeal.*stop/i.test(text))d.issue='Brakes squeal when stopping';else if(/tire.*(?:losing|lose|low).*air|flat tire|puncture/i.test(text))d.issue='Tire losing air';else if(/check.engine|engine light/i.test(text))d.issue='Check engine light is on';else if(/routine service before a road trip/i.test(text))d.issue='Routine service before a road trip';else if(m=text.match(/(?:problem|issue|description)\s*[:=]\s*([^;\n]+)/i))d.issue=m[1].trim().slice(0,300);
+ if(/next weekday morning/i.test(text))d.preferredTime='Next weekday morning';else if(/no preference|any time|anytime/i.test(text))d.preferredTime='No preference';else if(m=text.match(/\b(?:tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:\s+(?:morning|afternoon|evening))?(?:\s+(?:at|after|before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?/i))d.preferredTime=m[0];
+ const service=inferService(text);if(service)d.service=service;return d;
+}
+function advance(s,prefix='',action){const missing=fields.find(f=>!s.draft[f]);if(!missing)return base({...s,phase:'review'},(prefix?prefix+'\n\n':'')+'Here’s the request for your review. Nothing is sent until you explicitly consent. This is not a confirmed appointment.',[],{action:action||'review'});const [text,options]=prompts[missing];return base({...s,phase:missing==='preferredTime'?'time':missing},(prefix?prefix+'\n\n':'')+text,options,{action});}
 function respond(previous,raw){
  const input=String(raw||'').trim().slice(0,600),s={...previous,draft:{...previous.draft}};
- if(!input)return base(s,'Type a question or choose one of the suggestions.',STARTERS);
- if(/^(cancel|restart|start over|back to the demo)$/i.test(input))return {...base(initialState(),'No problem. The unfinished request has been cleared. What would you like to try?',STARTERS),action:'reset'};
- if(/^open owner view$/i.test(input))return base(s,'Opening the demo inbox. It only shows requests saved in this browser.',[],{action:'inbox'});
- if(s.phase==='review'){
-  if(/^save (?:demo )?request$/i.test(input)){return base(s,'Please use the Send test request button below to review the data notice and confirm.',[],{action:'review'});}
-  if(/^edit|change/i.test(input))return next({...s,draft:{}},'service','Let’s start the request again. Which service do you need?',SERVICES);
-  const answer=faq(input);if(answer)return {...base(s,answer.text,answer.options),action:answer.action};
-  return base(s,'Your request is ready to review. Use Send test request below, or choose Edit details.',[],{action:'review'});
+ if(!input)return base(s,'Please type a little more or choose a suggestion.',STARTERS);
+ if(/^(cancel(?: my)?(?: request| appointment)?|restart|start over|back to the demo)$/i.test(input))return base(initialState(),'The unfinished request is cancelled. Previously submitted requests are unchanged. What would you like to do?',STARTERS,{action:'reset'});
+ if(/^open owner view$/i.test(input))return base(s,'Opening the local preview. The protected owner dashboard is linked separately.',[],{action:'inbox'});
+ if(/^try a detailed sample$/i.test(input))return respond(s,"I'm Alex Demo, alex@example.com. My 2019 Toyota Camry brakes squeal when stopping. Next weekday morning.");
+ if(safety(input))return base(s,faq(input)+(s.phase!=='idle'?' Your unfinished request is still available.':''),['Cancel','Request service']);
+ const isQuestion=/\?|^(what|when|where|how|do you|are you|can you|is it|tell me)\b/i.test(input),answer=faq(input);
+ if(answer&&isQuestion&&!/\b(?:my|i have|i need)\b/i.test(input))return base(s,answer+(s.phase!=='idle'?'\n\nI’ve kept your request details.':''),s.phase==='idle'?STARTERS:(prompts[s.phase==='time'?'preferredTime':s.phase]?.[1]||['Edit details','Cancel']));
+ if(/^edit details$/i.test(input))return base({...s,phase:'editing'},'What would you like to change? Say “change my email to alex@example.com” or choose a field.',['Change service','Change vehicle','Change description','Change time','Change name','Change contact'],{action:'invalidateReview'});
+ const edit=input.match(/^(?:change|update|correct|replace)(?: my| the)?\s+(service|vehicle|car|description|issue|problem|time|name|contact|email|phone)(?:\s+(?:to|is|with))?\s*[:=]?\s*(.*)$/i);
+ let extracted=extractDetails(input),editing=false;
+ if(edit){const map={car:'vehicle',description:'issue',problem:'issue',time:'preferredTime',email:'contact',phone:'contact'},field=map[edit[1].toLowerCase()]||edit[1].toLowerCase(),value=edit[2].trim();delete s.draft[field];editing=true;
+  if(value){if(field==='name'&&/^[a-z][a-z '-]{1,59}$/i.test(value))extracted.name=value;else if(field==='issue')extracted.issue=value.slice(0,300);else if(field==='preferredTime')extracted.preferredTime=value.slice(0,100);else if(field==='vehicle'&&vehicleValid(value))extracted.vehicle=value;else if(field==='contact'&&contactValid(value))extracted.contact=value;}
+  if(!value){s.phase=field==='preferredTime'?'time':field;return base(s,prompts[field][0],prompts[field][1],{action:'invalidateReview'});}
  }
- const answer=faq(input);
- // Contact entries and symptom descriptions are data, not questions; never treat them as commands.
- const isQuestion=/\?|^(what|when|where|how|do you|are you|can you|is it|tell me)\b/i.test(input);
- if(answer&&(s.phase==='idle'||isQuestion||/\b(emergency|smoke|smoking|fire|unsafe|accident|crash|brakes? (?:failed|not working))\b/i.test(input))){
-  const suffix=s.phase!=='idle'?'\n\nYour unfinished request is still here. Continue with the detail I asked for, or type Cancel.':'';
-  return {...base(s,answer.text+suffix,answer.options),action:answer.action};
- }
- switch(s.phase){
- case 'idle':{
-  const service=inferService(input),start=/\b(request|appointment|book|schedule|need|want|service my|help with)\b/i.test(input);
-  if(service){s.draft.service=service;return next(s,'vehicle','Let’s create a sample '+service.toLowerCase()+' request. What is the vehicle’s year, make, and model?',['Use 2019 Toyota Camry']);}
-  if(start)return next(s,'service','Sure — use sample details only. Which service should the demo request be for?',SERVICES);
-  if(/^(hi|hello|hey|good morning|thanks|thank you)[!. ]*$/i.test(input))return base(s,'Hi! I can answer questions about the fictional shop or help create a sample service request.',STARTERS);
-  return base(s,'I’m a scripted demo, so I may not understand that yet. I can help with services, hours, estimates, or a sample service request. What would you like to try?',STARTERS);
- }
- case 'service':{
-  const service=inferService(input);if(!service)return base(s,'Choose one of the demo services so I can collect the right details.',SERVICES);
-  s.draft.service=service;return next(s,'vehicle','What is the vehicle’s year, make, and model?',['Use 2019 Toyota Camry']);
- }
- case 'vehicle':{
-  const value=input.replace(/^use /i,'');if(!vehicleValid(value))return base(s,'Please include a four-digit year, make, and model — for example, 2019 Toyota Camry.',['Use 2019 Toyota Camry']);
-  s.draft.vehicle=value;return next(s,'issue','What would you like the shop to know? Add a short description of the service or concern.',['Routine service before a road trip']);
- }
- case 'issue':
-  if(input.length<5)return base(s,'Could you add a little more detail for the service advisor?',['Routine service before a road trip']);
-  s.draft.issue=input;return next(s,'time','Any preferred day or time? This is a preference only — no appointment will be confirmed.',['Next weekday morning','No preference']);
- case 'time':
-  s.draft.preferredTime=input;return next(s,'name','What name should we use for the sample request?',['Use Alex Demo']);
- case 'name':{
-  const value=input.replace(/^use /i,'');if(value.length<2||!/[a-z]/i.test(value)||value.includes('@'))return base(s,'Please enter a name for the sample request.',['Use Alex Demo']);
-  s.draft.name=value;return next(s,'contact','What email address or phone number should the demo request show? Use a sample contact, such as alex@example.com.',['Use alex@example.com']);
- }
- case 'contact':{
-  const value=input.replace(/^use /i,'');if(!contactValid(value))return base(s,'Please use a valid-looking email address or a phone number with 10–15 digits. Sample details are best.',['Use alex@example.com']);
-  s.draft.contact=value;return next(s,'review','Here’s your sample request. Check the details before sending the fictional test to the owner.',[]);
- }
- default:return base(initialState(),welcome.text,STARTERS);
- }
+ const plain=input.replace(/^use /i,'');if(!edit){if(s.phase==='vehicle'&&vehicleValid(plain)&&!extracted.vehicle&&plain.split(/\s+/).length<=5)extracted.vehicle=plain;
+  if(s.phase==='name'&&!extracted.name&&/^[a-z][a-z'-]+(?:\s+[a-z][a-z'-]+){0,2}$/i.test(plain)&&!/(hello|unknown|whatever|cancel|banana|asdf)/i.test(plain))extracted.name=plain;
+  if(s.phase==='issue'&&!extracted.issue&&/brake|tire|oil|engine|noise|leak|battery|start|service|maintenance|vibrat|shak|air|light/i.test(plain)&&plain.length>=5)extracted.issue=plain.slice(0,300);}
+ if(!edit&&s.draft.service&&extracted.service&&s.phase!=='service'&&s.phase!=='idle')delete extracted.service;
+ const before=JSON.stringify(s.draft);Object.assign(s.draft,extracted);
+ if(s.phase==='review'&&!edit&&before===JSON.stringify(s.draft))return base(s,'Review the details below, choose Edit details, or Cancel. Sending still requires your explicit consent.',['Edit details','Cancel']);
+ if(Object.keys(extracted).length)return advance(s,editing?'Updated that detail.':'Got it — I’ve kept the details you provided.',s.phase==='review'||editing?'invalidateReview':undefined);
+ if(/^request service$|\b(?:book|appointment|schedule|request|need service)\b/i.test(input))return advance(s,'Let’s prepare a request for the advisor. Use fictional details in this public demo.');
+ if(/^(hi|hello|hey|thanks|thank you)[!. ]*$/i.test(input))return base(s,'Hi! Tell me the vehicle, concern and contact details together, or choose a service. Use fictional test details.',STARTERS);
+ if(answer)return base(s,answer,STARTERS);
+ if(s.phase!=='idle'&&s.phase!=='editing')return advance(s,'I’m not sure I understood that detail. I’ve kept everything else; please rephrase or type Cancel.');
+ return base(s,'I didn’t catch a service request there. Try “My 2019 Toyota Camry has a check engine light”, or ask about services and hours.',STARTERS);
 }
-function toCsv(leads){
- const fields=['id','createdAt','name','contact','service','vehicle','issue','preferredTime','status'];
- const escape=value=>{let v=String(value??'');if(/^[=+\-@\t\r]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';};
- return fields.map(escape).join(',')+'\r\n'+leads.map(lead=>fields.map(key=>escape(lead[key])).join(',')).join('\r\n');
-}
+function toCsv(leads){const fields=['id','createdAt','name','contact','service','vehicle','issue','preferredTime','status'];const escape=value=>{let v=String(value??'');if(/^[=+\-@\t\r]/.test(v))v="'"+v;return '"'+v.replace(/"/g,'""')+'"';};return fields.map(escape).join(',')+'\r\n'+leads.map(l=>fields.map(k=>escape(l[k])).join(',')).join('\r\n');}
 
 const TEST_POLICY='test-2026-10-22-v1';
-const TEST_ONLY_FIELDS={name:['Alex Demo'],contact:['alex@example.com'],service:['Oil & filter change','Brake inspection','Tire service','Engine diagnostics','Routine maintenance'],vehicle:['2019 Toyota Camry'],issue:['Routine service before a road trip'],preferredTime:['Next weekday morning','No preference']};
+const TEST_ONLY_FIELDS={name:['Alex Demo'],contact:['alex@example.com'],service:['Oil & filter change','Brake inspection','Tire service','Engine diagnostics','Routine maintenance'],vehicle:['2019 Toyota Camry'],issue:['Routine service before a road trip','Brakes squeal when stopping','Tire losing air','Check engine light is on'],preferredTime:['Next weekday morning','No preference']};
 function isTestFixture(draft){return Object.entries(TEST_ONLY_FIELDS).every(([key,values])=>values.includes(draft[key]));}
 function intakePayload(draft,id,startedAt,consentedAt=Date.now()){return {...draft,id,startedAt,consentedAt,mode:'TEST',policy:TEST_POLICY,consent:true,site:'https://autoleadaigmn-rgb.github.io/avtoleadtest/',website:''};}
 async function submitTestRequest(endpoint,payload){
@@ -116,9 +103,13 @@ async function submitTestRequest(endpoint,payload){
 
 // Public endpoint address only. No secrets, spreadsheet IDs, or email recipients.
 const INTAKE_ENDPOINT='https://script.google.com/macros/s/AKfycbwki6-fQ7_ezzcBAVTUr2yrp0K81_stkFGtM7OPmg9Ce_czhejWLmFnFh3GGerfkKujsA/exec';
+const OWNER_DASHBOARD_URL='https://script.google.com/macros/s/AKfycbxtns9kYPTiY9LZn93fhJYMBHW4ml49msiG5upC5wLknUSP6XMN7BSvBSj14w0JNl5moQ/exec?owner=1';
+
+function applyShop(c){validateShop(c);const services=SHOP.services;services.splice(0,services.length,...c.services);Object.assign(SHOP,c,{services});document.documentElement.style.setProperty('--ink',c.colors.primary);document.documentElement.style.setProperty('--green',c.colors.accent);document.documentElement.style.setProperty('--paper',c.colors.background);document.querySelector('.chat-header h2').textContent=c.name;document.querySelector('.chat-header p').textContent=(c.fictional?'Fictional shop · ':'')+c.city;document.querySelector('.shop-intro h2').textContent=c.name;const dd=document.querySelectorAll('.shop-facts dd');dd[0].textContent=c.services.join(', ');dd[1].textContent=c.hours;dd[3].textContent=[c.city,c.contact.address,c.contact.phone,c.contact.email].filter(Boolean).join(' · ');if(c.logoUrl){const img=document.createElement('img');img.src=c.logoUrl;img.alt=c.name+' logo';img.style.cssText='width:100%;height:100%;object-fit:contain';img.onerror=()=>img.remove();document.querySelector('.shop-icon').replaceChildren(img);}document.querySelectorAll('[data-owner-dashboard]').forEach(a=>{a.href=OWNER_DASHBOARD_URL||'#owner-access';a.hidden=!OWNER_DASHBOARD_URL;});}
+async function loadShop(){try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);let result;try{const response=await fetch(INTAKE_ENDPOINT,{credentials:'omit',signal:controller.signal});result=await response.json();}finally{clearTimeout(timer);}if(result.ok&&result.shop)applyShop(result.shop);return true;}catch{return false;}}
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
-let state=initialState(),filter='all',activeReview=null,startedAt=Date.now();
+let state=initialState(),filter='all',activeReview=null,startedAt=Date.now(),sending=false;
 const STORAGE='autolead-receptionist-demo-v1';
 let leads=[],storageAvailable=true;
 try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'[]');leads=Array.isArray(raw)?raw.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&typeof x.contact==='string'&&['new','contacted'].includes(x.status)).slice(0,100):[];localStorage.setItem(STORAGE,JSON.stringify(leads));}catch{storageAvailable=false;}
@@ -138,27 +129,28 @@ function showReview(){
  card.append(element('strong','','YOUR SAMPLE REQUEST'));
  const list=element('dl');[['Service',d.service],['Vehicle',d.vehicle],['Details',d.issue],['Preference',d.preferredTime],['Name',d.name],['Contact',d.contact]].forEach(([name,value])=>{const row=element('div');row.append(element('dt','',name),element('dd','',value));list.append(row);});card.append(list);
  const label=element('label','consent-check'),check=element('input');check.type='checkbox';check.id='demo-consent-'+requestId;label.append(check,element('span','','I agree to send these fictional test details to AutoLead AI. They will be saved in a separate private Google Sheet and emailed to the verified AutoLead Gmail owner. A local copy stays in this browser. No real personal data. Test notice v1.'));card.append(label);
- const notice=element('p','review-error','Test mode accepts only Alex Demo, alex@example.com, 2019 Toyota Camry and the suggested sample description and time. No real bookings.');card.append(notice);
+ const notice=element('p','review-error','Test mode accepts only Alex Demo, alex@example.com, 2019 Toyota Camry, supported sample concerns and the suggested sample times. No real bookings.');card.append(notice);
  const error=element('p','review-error');error.setAttribute('role','status');card.append(error);
  const actions=element('div','review-actions'),save=element('button','button lime','Send test request'),edit=element('button','text-button','Edit details');save.type=edit.type='button';
  save.addEventListener('click',async()=>{
   if(!check.checked){error.textContent='Please confirm the demo storage notice first.';check.focus();return;}
   if(leads.length>=100){error.textContent='This demo inbox holds up to 100 requests. Export or delete some before adding another.';return;}
   if(!isTestFixture(d)){error.textContent='Nothing was sent. Use the suggested fictional details only. Real personal data is disabled on the server.';return;}
-  save.disabled=true;edit.disabled=true;check.disabled=true;save.textContent='Sending test…';error.textContent='Waiting for server confirmation…';
+  sending=true;$('#chat-input').disabled=true;$('#restart-chat').disabled=true;save.disabled=true;edit.disabled=true;check.disabled=true;save.textContent='Sending test…';error.textContent='Waiting for server confirmation…';
   try{
    const result=await submitTestRequest(INTAKE_ENDPOINT,intakePayload(d,requestId,startedAt));
    const lead={...d,id:result.receipt,createdAt:new Date().toISOString(),status:'new',delivery:'TEST',notification:result.notification};
    if(!leads.some(l=>l.id===lead.id))leads.unshift(lead);const localSaved=persist();
    save.textContent='Test received ✓';error.textContent='Receipt: '+result.receipt+(result.duplicate?' · Already received, no duplicate created.':'')+(localSaved?'':' · Local copy unavailable.');updateCounts();
    bubble('The server confirmed your fictional test request in the private Demo Requests sheet. '+(result.notification==='SENT'?'The owner notification was sent.':'The owner must review notification delivery.')+'\n\nThis is not an appointment. No email was sent to the sample contact. Owner view shows this browser’s local copy.','saved');state=initialState();activeReview=null;options(['Open owner view','Start over']);setPlaceholder();
-  }catch(err){error.textContent=err.message;save.disabled=false;edit.disabled=false;check.disabled=false;save.textContent='Retry same test request';}
+  }catch(err){error.textContent=err.message;save.disabled=false;edit.disabled=false;check.disabled=false;save.textContent='Retry same test request';}finally{sending=false;$('#chat-input').disabled=false;$('#restart-chat').disabled=false;}
  });
  edit.addEventListener('click',()=>{save.disabled=true;edit.disabled=true;check.disabled=true;activeReview=null;send('Edit details');});actions.append(save,edit);card.append(actions);$('#messages').append(card);scrollChat();
 }
 function send(text){
+ if(sending){$('#chat-feedback').textContent='Please wait for the server receipt before changing this request.';return;}
  if(!text.trim())return;
- bubble(text,'user');const result=respond(state,text);if(result.action==='reset'&&activeReview){activeReview.querySelectorAll('button,input').forEach(x=>x.disabled=true);activeReview=null;}
+ bubble(text,'user');const result=respond(state,text);if(['reset','invalidateReview'].includes(result.action)&&activeReview){activeReview.querySelectorAll('button,input').forEach(x=>x.disabled=true);activeReview=null;}
  state=result.state;bubble(result.text);options(result.options);setPlaceholder();
  if(state.phase==='review'&&result.action!=='inbox')showReview();if(result.action==='inbox')openInbox();
 }
@@ -191,31 +183,31 @@ $('#clear-leads').addEventListener('click',()=>{$('#clear-confirm').hidden=false
 $('#cancel-clear').addEventListener('click',()=>$('#clear-confirm').hidden=true);
 $('#confirm-clear').addEventListener('click',()=>{const old=leads;leads=[];if(!persist()){leads=old;$('#owner-status').textContent='Could not clear browser storage.';return;}$('#clear-confirm').hidden=true;$('#owner-status').textContent='Demo requests cleared from this browser.';renderInbox();});
 window.addEventListener('storage',e=>{if(e.key===STORAGE){try{const value=JSON.parse(e.newValue||'[]');if(Array.isArray(value))leads=value.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&typeof x.contact==='string'&&['new','contacted'].includes(x.status)).slice(0,100);updateCounts();if($('#owner-dialog').open)renderInbox();}catch{}}});
-updateCounts();start();if(!storageAvailable)$('#chat-feedback').textContent='Browser storage is unavailable. You can chat, but requests cannot be saved on this device.';
+applyShop(SHOP);updateCounts();start();loadShop().then(ok=>{welcome.text=SHOP.greeting+'\n\nUse fictional details only. A request is never a confirmed appointment.';if(state.phase==='idle'&&$('#messages').children.length===1)start();if(!ok)$('#chat-feedback').textContent='Using the built-in demo shop settings. Server settings could not be loaded.';});if(!storageAvailable)$('#chat-feedback').textContent='Local preview storage is unavailable. Server delivery can still be tested.';
 </script>
 </head>
 <body>
   <a class="skip-link" href="#demo">Skip to interactive demo</a>
   <header class="header wrap">
     <a class="brand" href="#" aria-label="AutoLead AI home"><span class="brand-mark" aria-hidden="true">a<span>↗</span></span>AutoLead <strong>AI</strong></a>
-    <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#shop">The demo shop</a><button class="nav-inbox" data-open-inbox>Owner view <span class="inbox-count" aria-label="saved requests">0</span></button></nav>
+    <nav aria-label="Main navigation"><a class="owner-link" data-owner-dashboard target="_blank" rel="noopener">Owner dashboard ↗</a><a href="#how-it-works">How it works</a><a href="#shop">The demo shop</a><button class="nav-inbox" data-open-inbox>Local preview <span class="inbox-count" aria-label="saved requests">0</span></button></nav>
     <a class="header-cta" href="#demo">Try the receptionist <span aria-hidden="true">↗</span></a>
   </header>
   <main>
     <section class="hero wrap" aria-labelledby="hero-title">
       <div class="hero-copy">
-        <p class="eyebrow"><span class="live-dot"></span> BUILT FOR INDEPENDENT AUTO SHOPS</p>
+        <p class="eyebrow"><span class="live-dot"></span> AI RECEPTIONIST FOR AUTO REPAIR SHOPS</p>
         <h1 id="hero-title">Keep the <br>conversation<br><em>moving.</em></h1>
-        <p class="hero-description">Your next service request starts here. Meet an AI receptionist concept that answers routine questions and collects the details your team needs.</p>
-        <div class="hero-actions"><a class="button lime" href="#demo" data-focus-chat>Take it for a test drive <span aria-hidden="true">↗</span></a><button class="text-button" data-open-inbox>See the owner’s inbox <span aria-hidden="true">→</span></button></div>
-        <p class="honesty"><span aria-hidden="true">◈</span> Interactive prototype. Scripted responses. No paid AI API.</p>
+        <p class="hero-description">Give every website inquiry a clear next step. Answer shop questions, collect vehicle details and hand an organized service request to your team. Try the working, rules-based demo below.</p>
+        <div class="hero-actions"><a class="button lime" href="#demo" data-focus-chat>Take it for a test drive <span aria-hidden="true">↗</span></a><button class="text-button" data-open-inbox>Preview a request <span aria-hidden="true">→</span></button></div>
+        <p class="honesty"><span aria-hidden="true">◈</span> Rules-based demo. No generative AI or paid API. Requests need staff confirmation.</p>
         <div class="workflow-strip"><span>01 <b>Answer</b></span><i aria-hidden="true">→</i><span>02 <b>Collect</b></span><i aria-hidden="true">→</i><span>03 <b>Hand off</b></span></div>
       </div>
       <div class="demo-stage" id="demo">
         <div class="stage-caption"><span>THE LIVE DEMO</span><span>Go ahead. Ask it something. <span aria-hidden="true">↘</span></span></div>
         <section class="chat" aria-label="Bayline Auto Care receptionist demo">
           <header class="chat-header"><div class="shop-icon" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none"><path d="m6 19 3-8h14l3 8M5 19h22v7h-3v-3H8v3H5v-7Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 19h14M9 15h14M9 22h2m10 0h2" stroke="currentColor" stroke-width="1.8"/></svg></div><div><h2>Bayline Auto Care</h2><p>Fictional shop · Houston, TX</p></div><button id="restart-chat" class="icon-button" aria-label="Restart demo conversation" title="Restart conversation">↺</button></header>
-          <div class="chat-mode"><span class="live-dot"></span> Scripted receptionist demo <span>WEB CHAT</span></div>
+          <div class="chat-mode"><span class="live-dot"></span> Rules-based receptionist demo <span>WEB CHAT</span></div>
           <div id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions" aria-label="Conversation"></div>
           <div id="quick-replies" class="quick-replies" aria-label="Suggested replies"></div>
           <div id="chat-feedback" class="chat-feedback" role="status"></div>
@@ -231,12 +223,12 @@ updateCounts();start();if(!storageAvailable)$('#chat-feedback').textContent='Bro
       <div class="process-grid">
         <article><div class="step-top"><span>01 / ANSWER</span><span class="step-symbol" aria-hidden="true">↔</span></div><h3>Handle the everyday questions.</h3><p>Services, opening hours, the estimate process. This demo responds using a small set of clearly defined shop facts.</p><button data-chat-prompt="What services do you offer?">Ask a service question <span aria-hidden="true">↗</span></button></article>
         <article><div class="step-top"><span>02 / COLLECT</span><span class="step-symbol" aria-hidden="true">＋</span></div><h3>Get the useful details first.</h3><p>Service needed, vehicle, a short description, and a contact method. One question at a time, in a natural flow.</p><button data-chat-prompt="I'd like to request service">Create a sample request <span aria-hidden="true">↗</span></button></article>
-        <article><div class="step-top"><span>03 / HAND OFF</span><span class="step-symbol" aria-hidden="true">↗</span></div><h3>See what lands with the shop.</h3><p>With consent, fictional tests go to a private Google Sheet and the AutoLead owner’s Gmail. Owner view shows a local copy.</p><button data-open-inbox>Explore the owner view <span aria-hidden="true">↗</span></button></article>
+        <article><div class="step-top"><span>03 / HAND OFF</span><span class="step-symbol" aria-hidden="true">↗</span></div><h3>See what lands with the shop.</h3><p>With consent, fictional tests go to a private Google Sheet and the AutoLead owner’s Gmail. Local preview shows a browser copy; the protected owner dashboard reads the private Sheet.</p><button data-open-inbox>Explore the owner view <span aria-hidden="true">↗</span></button></article>
       </div>
     </section>
     <section class="shop-section" id="shop"><div class="wrap shop-layout"><div class="shop-intro"><p class="eyebrow">MEET YOUR DEMO SHOP</p><h2>Bayline<br>Auto Care<span aria-hidden="true">✳</span></h2><p class="fictional-tag">FICTIONAL BUSINESS · ILLUSTRATIVE DETAILS</p><p>A neighborhood shop concept in Houston, Texas. Every service, hour, and policy below is made up for this demonstration.</p><div class="garage-illustration" aria-hidden="true"><svg viewBox="0 0 450 160" fill="none"><path d="M16 142h418M36 141V42l190-28 188 28v99M59 58h330M74 140V71h136v69m25 0V71h133v69M83 82h117M83 95h117M83 108h117M244 82h115M244 95h115" stroke="currentColor" stroke-width="1.5"/><path d="m262 126 9-18h54l12 18m-80 0h85v13h-8v-7h-66v7h-11v-13Z" stroke="currentColor" stroke-width="2"/><path d="M104 34h75" stroke="#d7fa75" stroke-width="4"/></svg></div></div><div class="shop-facts"><h3>The information behind the answers</h3><dl><div><dt>Services</dt><dd>Oil & filter changes, brake inspections, tire service, engine diagnostics, and routine maintenance.</dd></div><div><dt>Shop hours</dt><dd>Monday–Friday, 8 am–6 pm<br>Saturday, 9 am–1 pm · Sunday, closed<br><small>All times US Central. Demo hours.</small></dd></div><div><dt>Estimates & appointments</dt><dd>Pricing requires a staff review. A request is not a confirmed appointment. No availability or prices are invented.</dd></div><div><dt>Demo location</dt><dd>Houston, Texas — fictional location.<br>No real street address or phone number.</dd></div></dl><button class="button outline-light" data-chat-prompt="What are your hours?">Ask the receptionist <span aria-hidden="true">↗</span></button></div></div></section>
-    <section class="section wrap faq-section"><div><p class="eyebrow dark-eyebrow">CLEAR EXPECTATIONS</p><h2>A real interaction.<br>A transparent demo.</h2><p>Try the workflow before discussing a production setup.</p></div><div class="faq-list"><details><summary>Is this using a live AI model?<span aria-hidden="true">+</span></summary><p>No. It uses scripted intent matching and a guided request flow. It has no paid AI API, model, voice calling, or live scheduling connection. A production AI integration would be a separate step.</p></details><details><summary>Where do the requests go?<span aria-hidden="true">+</span></summary><p>With your consent, the suggested fictional test details are sent over HTTPS to an AutoLead Google Apps Script server, saved in a separate private Demo Requests Google Sheet, and emailed to the verified AutoLead Gmail owner. A copy is saved in this browser. Real contact data is rejected. Owner view is a local preview, not access to the private Sheet.</p></details><details><summary>Can it diagnose a vehicle or confirm a booking?<span aria-hidden="true">+</span></summary><p>No. It collects the customer’s description for a service advisor. It does not diagnose safety issues, quote repair prices, or promise an appointment.</p></details><details><summary>What would a real deployment need?<span aria-hidden="true">+</span></summary><p>Verified shop information, a secure shared inbox or CRM connection, consent and retention settings, and testing with the shop. Live AI, voice, and scheduling integrations would be agreed separately. This demo makes no claims about real customers or results.</p></details></div></section>
-    <section class="section wrap" id="privacy" aria-labelledby="privacy-title"><p class="eyebrow dark-eyebrow">TEST DATA NOTICE · VERSION 1</p><h2 id="privacy-title">Fictional requests only.</h2><p>This test sends service, vehicle, sample description, preferred time, sample name and contact, request ID, and consent time to AutoLead AI using Google Apps Script. The owner stores accepted tests in a separate private Google Sheet and receives an email in Gmail. Google processes these records in the owner’s account. No real shop receives them and no appointment is booked.</p><p>Use only Alex Demo, alex@example.com, 2019 Toyota Camry, and the suggested sample description and time. Other data is rejected before it is stored or emailed by the server. Up to three accepted tests per UTC day are allowed across all visitors. Identical requests within 24 hours are not saved or emailed again.</p><p>A browser-local copy supports Owner view. Local deletion does not delete the server record or email. The owner should remove test rows and notification emails after review, within seven days. For questions or deletion requests, contact <a href="mailto:autolead.ai.gmn@gmail.com">autolead.ai.gmn@gmail.com</a>. This notice is for testing; public collection of real personal data remains disabled until the owner approves production settings and a privacy policy.</p></section><section class="closing wrap"><div><p class="eyebrow dark-eyebrow">MAKE YOUR NEXT CONVERSATION COUNT</p><h2>Give it a test drive.</h2><p>Ask a question. Create a sample request. See the handoff.</p></div><a class="button dark-button" href="#demo" data-focus-chat>Try the live demo <span aria-hidden="true">↗</span></a></section>
+    <section class="section wrap faq-section"><div><p class="eyebrow dark-eyebrow">CLEAR EXPECTATIONS</p><h2>Built around the way<br>your shop handles inquiries.</h2><p>Try the workflow before discussing a production setup.</p></div><div class="faq-list"><details><summary>Is this using a live AI model?<span aria-hidden="true">+</span></summary><p>No. It uses local rules, multi-field extraction and a flexible request flow. You can correct details without starting over. It does not use a generative AI model, voice calling or a live scheduling connection.</p></details><details><summary>Where do the requests go?<span aria-hidden="true">+</span></summary><p>With your consent, the suggested fictional test details are sent over HTTPS to an AutoLead Google Apps Script server, saved in a separate private Demo Requests Google Sheet, and emailed to the verified AutoLead Gmail owner. A copy is saved in this browser. Real contact data is rejected. Local preview stays on this device. The protected Owner dashboard reads server requests after Google authorization.</p></details><details><summary>Can it diagnose a vehicle or confirm a booking?<span aria-hidden="true">+</span></summary><p>No. It collects the customer’s description for a service advisor. It does not diagnose safety issues, quote repair prices, or promise an appointment.</p></details><details><summary>What would a real deployment need?<span aria-hidden="true">+</span></summary><p>Verified shop information, a secure shared inbox or CRM connection, consent and retention settings, and testing with the shop. Live AI, voice, and scheduling integrations would be agreed separately. This demo makes no claims about real customers or results.</p></details></div></section>
+    <section class="section wrap product-features" id="owner-access"><p class="eyebrow dark-eyebrow">ONE TEMPLATE. YOUR SHOP.</p><h2>Your information.<br>A private place to follow up.</h2><div class="process-grid"><article><h3>Make it yours.</h3><p>Set your shop name, logo, colors, hours, services and greeting from the protected owner settings.</p></article><article><h3>Keep requests organized.</h3><p>Search your server inbox and move requests through New, Contacted, Scheduled and Closed. Scheduling status is internal and does not book an appointment.</p></article><article><h3>Keep client data separate.</h3><p>Each shop uses its own Google owner, Apps Script project and private Sheet. This public demo accepts fictional test data only.</p></article></div><div class="product-actions"><a class="button dark-button" href="mailto:autolead.ai.gmn@gmail.com?subject=AutoLead%20AI%20demo%20request">Request a shop demo ↗</a><a class="button" data-owner-dashboard target="_blank" rel="noopener">Open protected owner dashboard ↗</a></div></section><section class="section wrap" id="privacy" aria-labelledby="privacy-title"><p class="eyebrow dark-eyebrow">TEST DATA NOTICE · VERSION 1</p><h2 id="privacy-title">Fictional requests only.</h2><p>This test sends service, vehicle, sample description, preferred time, sample name and contact, request ID, and consent time to AutoLead AI using Google Apps Script. The owner stores accepted tests in a separate private Google Sheet and receives an email in Gmail. Google processes these records in the owner’s account. No real shop receives them and no appointment is booked.</p><p>Use only Alex Demo, alex@example.com, 2019 Toyota Camry, and one of the suggested sample concerns and times. Other data is rejected before it is stored or emailed by the server. Up to three accepted tests per UTC day are allowed across all visitors. Identical requests within 24 hours are not saved or emailed again.</p><p>A browser-local copy supports Owner view. Local deletion does not delete the server record or email. The owner should remove test rows and notification emails after review, within seven days. For questions or deletion requests, contact <a href="mailto:autolead.ai.gmn@gmail.com">autolead.ai.gmn@gmail.com</a>. This notice is for testing; public collection of real personal data remains disabled until the owner approves production settings and a privacy policy.</p></section><section class="closing wrap"><div><p class="eyebrow dark-eyebrow">MAKE YOUR NEXT CONVERSATION COUNT</p><h2>Give it a test drive.</h2><p>Ask a question. Create a sample request. See the handoff.</p></div><a class="button dark-button" href="#demo" data-focus-chat>Try the live demo <span aria-hidden="true">↗</span></a></section>
   </main>
   <footer class="wrap footer"><a class="brand" href="#">AutoLead <strong>AI</strong></a><p>AI Receptionist for Auto Repair Shops<br><span>Scripted concept demo · Fictional shop · Test-only delivery</span></p><a href="mailto:autolead.ai.gmn@gmail.com?subject=AutoLead%20AI%20receptionist%20demo">Talk about your shop <span aria-hidden="true">↗</span></a></footer>
   <dialog id="owner-dialog" aria-labelledby="owner-title"><div class="owner-header"><div><p class="eyebrow dark-eyebrow">BAYLINE AUTO CARE / DEMO</p><h2 id="owner-title">The owner’s inbox<span id="owner-count">0 requests</span></h2></div><button id="close-owner" class="icon-button" aria-label="Close owner view">×</button></div><div class="owner-note"><span aria-hidden="true">◈</span><p><strong>Local preview · test requests.</strong> This view shows copies stored in this browser. Accepted tests also remain in the owner’s private Google Sheet and Gmail. Deleting here removes only the local copy.</p></div><div class="owner-toolbar"><div role="group" aria-label="Filter requests"><button class="filter active" data-filter="all" aria-pressed="true">All requests</button><button class="filter" data-filter="new" aria-pressed="false">New</button><button class="filter" data-filter="contacted" aria-pressed="false">Contacted</button></div><button id="export-leads" class="text-button">Export CSV ↓</button></div><div id="owner-list" class="owner-list"></div><p id="owner-status" class="owner-status" role="status"></p><div class="owner-footer"><button id="fill-example" class="text-button">Try the chat with sample details ↗</button><button id="clear-leads" class="danger-button">Clear demo requests</button></div><div id="clear-confirm" hidden class="clear-confirm"><p>Delete all requests saved in this browser? This cannot be undone.</p><button id="confirm-clear" class="danger-button">Delete all requests</button><button id="cancel-clear" class="text-button">Keep requests</button></div></dialog>
