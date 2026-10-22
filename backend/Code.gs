@@ -10,7 +10,7 @@ function showDemoAuthorization() {
 function setupDemoRequests() {
   ScriptApp.requireAllScopes(ScriptApp.AuthMode.FULL);
   var p=PropertiesService.getScriptProperties(),owner=Session.getEffectiveUser().getEmail();
-  if(!/^[^\s@]+@gmail\.com$/i.test(owner))throw new Error('Run setup as the confirmed Gmail owner.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(owner))throw new Error('Run setup as the verified Google account owner.');
   if(p.getProperty('OWNER_EMAIL')&&p.getProperty('OWNER_EMAIL')!==owner)throw new Error('Owner mismatch.');
   p.setProperty('OWNER_EMAIL',owner);
   var id=p.getProperty('REQUESTS_SHEET_ID'),ss=id?SpreadsheetApp.openById(id):SpreadsheetApp.create('AutoLead AI — Demo Requests');
@@ -45,6 +45,7 @@ function drValidate_(x,now){
   if(!Number.isFinite(x.startedAt)||now-x.startedAt<3000||now-x.startedAt>3600000)return fail('TIMING_REJECTED');
   if(!Number.isFinite(x.consentedAt)||Math.abs(now-x.consentedAt)>300000)return fail('CONSENT_EXPIRED');
   var allowed={name:['Alex Demo'],contact:['alex@example.com'],service:['Oil & filter change','Brake inspection','Tire service','Engine diagnostics','Routine maintenance'],vehicle:['2019 Toyota Camry'],issue:['Routine service before a road trip','Brakes squeal when stopping','Tire losing air','Check engine light is on'],preferredTime:['Next weekday morning','No preference']};
+  allowed.service=drPublicConfig_().services;
   var data={id:x.id,consentedAt:x.consentedAt};
   for(var key in allowed){if(typeof x[key]!=='string'||!x[key].trim())return fail('REQUIRED_FIELDS');var value=x[key].trim();if(allowed[key].indexOf(value)<0)return fail('TEST_DATA_ONLY');data[key]=value;}
   return {ok:true,data:data};
@@ -71,7 +72,7 @@ function drReceive_(d){
     if(now-last<DR.cooldown*1000)return {ok:false,code:'RATE_LIMIT',retryable:true};
     if(MailApp.getRemainingDailyQuota()<1)return {ok:false,code:'EMAIL_QUOTA',retryable:true};
     var row=sheet.getLastRow()+1;
-    sheet.getRange(row,1,1,DR_HEADERS.length).setValues([[d.id,new Date(now).toISOString(),'TEST',d.name,d.contact,d.service,d.vehicle,d.issue,d.preferredTime,DR.policy,new Date(d.consentedAt).toISOString(),'NEW','SENDING',fingerprint]]);
+    sheet.getRange(row,1,1,DR_HEADERS.length).setValues([[d.id,new Date(now).toISOString(),'TEST',d.name,d.contact,d.service,d.vehicle,d.issue,d.preferredTime,DR.policy,new Date(d.consentedAt).toISOString(),'NEW','SENDING',fingerprint].map(function(v){return typeof v==='string'&&/^[=+\-@]/.test(v)?"'"+v:v;})]);
     SpreadsheetApp.flush();
     var notification='SENT';
     try{
