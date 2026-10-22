@@ -62,7 +62,7 @@ function extractDetails(raw){
  else {
   const clauses=positive.split(/[;\n.!?]+|,(?!\d)/).map(x=>x.trim()).filter(Boolean);
   const concern=clauses.find(x=>/\b(noise|rattle|rattling|leak|leaking|vibrat|shak|jerk|stalls?|overheat|won't start|doesn't start|not starting|battery|brakes?|tires?|tyres?|oil change|maintenance|alignment|air conditioning|a\/c|transmission|clunk|smell|pulling|squeak|squeal|grind|heater|windshield|wiper)\b/i.test(x));
-  if(concern){let clean=concern.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'').replace(/\b(?:my name is|i am|i'm)\s+[^,]+?\band\b/i,'').trim();d.issue=clean;}
+  if(concern){let clean=concern.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'').replace(/\b(?:my name is|i am|i'm)\s+[^,]+?\band\b/i,'').trim();if(d.vehicle)clean=clean.split(d.vehicle).join('').replace(/^my\s+/i,'').replace(/^(?:has|is|makes|needs)\s+/i,'').trim();d.issue=clean;}
   if(m=positive.match(/(?:problem|issue|description)\s*[:=]\s*([^;\n]+)/i))d.issue=m[1].trim();
  }
  const service=inferService(positive);if(service)d.service=service;
@@ -138,7 +138,7 @@ const STORAGE='autolead-receptionist-demo-v1';
 let leads=[],storageAvailable=true;
 try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'[]');leads=Array.isArray(raw)?raw.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&typeof x.contact==='string'&&['new','contacted'].includes(x.status)):[];localStorage.setItem(STORAGE,JSON.stringify(leads.filter(l=>l.delivery!=='LOCAL')));}catch{storageAvailable=false;}
 function element(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
-function persist(){try{localStorage.setItem(STORAGE,JSON.stringify(leads));storageAvailable=true;return true;}catch{storageAvailable=false;return false;}}
+function persist(){try{localStorage.setItem(STORAGE,JSON.stringify(leads.filter(l=>l.delivery!=='LOCAL')));storageAvailable=true;return true;}catch{storageAvailable=false;return false;}}
 function updateCounts(){$$('.inbox-count').forEach(n=>n.textContent=leads.length);$('#owner-count').textContent=leads.length+' '+(leads.length===1?'request':'requests');}
 function options(values){const replies=$('#quick-replies');replies.replaceChildren();values.forEach(label=>{const btn=element('button','',label);btn.type='button';btn.addEventListener('click',()=>send(label));replies.append(btn);});}
 function bubble(text,kind='bot'){
