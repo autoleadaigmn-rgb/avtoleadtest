@@ -87,7 +87,7 @@ function respond(previous,raw){
  }
  case 'contact':{
   const value=input.replace(/^use /i,'');if(!contactValid(value))return base(s,'Please use a valid-looking email address or a phone number with 10–15 digits. Sample details are best.',['Use alex@example.com']);
-  s.draft.contact=value;return next(s,'review','Here’s your sample request. Check the details before saving it on this device.',[]);
+  s.draft.contact=value;return next(s,'review','Here’s your sample request. Check the details before sending the fictional test to the owner.',[]);
  }
  default:return base(initialState(),welcome.text,STARTERS);
  }
@@ -137,7 +137,7 @@ function showReview(){
  const d={...state.draft},requestId=crypto.randomUUID(),card=element('div','review-card');activeReview=card;
  card.append(element('strong','','YOUR SAMPLE REQUEST'));
  const list=element('dl');[['Service',d.service],['Vehicle',d.vehicle],['Details',d.issue],['Preference',d.preferredTime],['Name',d.name],['Contact',d.contact]].forEach(([name,value])=>{const row=element('div');row.append(element('dt','',name),element('dd','',value));list.append(row);});card.append(list);
- const label=element('label','consent-check'),check=element('input');check.type='checkbox';check.id='demo-consent';label.append(check,element('span','','I agree to send these fictional test details to AutoLead AI. They will be saved in a separate private Google Sheet and emailed to the verified AutoLead Gmail owner. A local copy stays in this browser. No real personal data. Test notice v1.'));card.append(label);
+ const label=element('label','consent-check'),check=element('input');check.type='checkbox';check.id='demo-consent-'+requestId;label.append(check,element('span','','I agree to send these fictional test details to AutoLead AI. They will be saved in a separate private Google Sheet and emailed to the verified AutoLead Gmail owner. A local copy stays in this browser. No real personal data. Test notice v1.'));card.append(label);
  const notice=element('p','review-error','Test mode accepts only Alex Demo, alex@example.com, 2019 Toyota Camry and the suggested sample description and time. No real bookings.');card.append(notice);
  const error=element('p','review-error');error.setAttribute('role','status');card.append(error);
  const actions=element('div','review-actions'),save=element('button','button lime','Send test request'),edit=element('button','text-button','Edit details');save.type=edit.type='button';
