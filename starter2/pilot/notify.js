@@ -1,4 +1,5 @@
 import {problem} from '../src/security.js';
+import {pilotEnabled,testEnabled} from './config.js';
 
 const MAX_ATTEMPTS=5,MAX_WINDOW=23*3600000;
 export async function sendResend(job,env,c){
@@ -8,7 +9,8 @@ export async function sendResend(job,env,c){
  throw error;
 }
 export async function deliverDue(db,env,c,now,send=sendResend){
- if(env.MODE!=='PILOT'||env.REAL_DATA_APPROVED!=='true'||env.MAIL_TRANSPORT!=='RESEND'||env.PRIVACY_REVIEWED!=='true')throw problem('PILOT_DISABLED',503);
+ if(!pilotEnabled(env))throw problem('PILOT_DISABLED',503);
+ if(testEnabled(env)&&env.MAIL_TRANSPORT==='SIMULATED')send=async job=>'simulated:'+job.request_id;
  const due=await db.prepare("SELECT request_id FROM outbox WHERE (state='pending' AND next_at<=?) OR (state='leased' AND lease_until<=?) ORDER BY next_at LIMIT 10").bind(now,now).all();
  const summary={sent:0,retried:0,dead:0};
  for(const row of due.results){

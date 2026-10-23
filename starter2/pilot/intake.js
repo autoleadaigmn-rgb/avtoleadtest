@@ -1,5 +1,7 @@
 import {problem,sha,rate} from '../src/security.js';
 import {resolveAppointmentTime} from '../public/appointment-time.js';
+import {testEnabled} from './config.js';
+import {requireTestFixture} from './fixture.js';
 
 const DAY=86400000, uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const clean=(value,min,max)=>typeof value==='string'&&value===value.trim()&&value.length>=min&&value.length<=max&&!/[<>\u0000-\u001f\u007f]/.test(value);
@@ -23,9 +25,12 @@ export async function verifyTurnstile(token,request,env,c){
   const response=await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({secret:env.TURNSTILE_SECRET,response:token,idempotency_key:crypto.randomUUID()})});
   if(!response.ok)throw Error();result=await response.json();
  }catch{throw problem('CHALLENGE_UNAVAILABLE',503);}
- if(result.success!==true||result.hostname!==new URL(request.url).hostname||result.action!=='starter_pilot'||result.cdata!==c.id)throw problem('CHALLENGE_FAILED',403);
+ if(testEnabled(env)){
+  if(result.success!==true||result.metadata?.result_with_testing_key!==true)throw problem('CHALLENGE_FAILED',403);
+ }else if(result.success!==true||result.hostname!==new URL(request.url).hostname||result.action!=='starter_pilot'||result.cdata!==c.id)throw problem('CHALLENGE_FAILED',403);
 }
 export async function savePilotRequest(db,input,claims,env,c,request,now){
+ if(testEnabled(env))requireTestFixture(input,c.id);
  const payload=validateRequest(input,c,now),hash=await sha(JSON.stringify({...payload,consentedAt:null}));
  if(claims.shop!==c.id)throw problem('INVALID_SESSION',401);
  if(await db.prepare('SELECT request_id FROM deletion_ledger WHERE request_id=? AND expires_at>?').bind(input.id,now).first())throw problem('REQUEST_GONE',410);

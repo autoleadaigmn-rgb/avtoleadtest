@@ -1,0 +1,33 @@
+# Separate Starter pilot cloud test — 2026-10-23
+
+## Current state
+
+- Git branch `starter-2-test`; last published commit before this work: `efb5e22214a889fff73372ac9c11a62367ce5e8f`. `main` and GitHub Pages were not changed.
+- Existing Worker `autolead-starter2-test` and its two D1 databases were not changed. Its `/health` still reports `TEST_ONLY`, `realMail:false`, `realData:false`.
+- New free test resources: `autolead-pilot-bayline` Worker/D1, `autolead-pilot-cedar` Worker/D1, and static `autolead-pilot-demo` Worker. No resource was deleted. Cloudflare D1 count is four, below the Free limit of ten. New Workers use three account Cron Triggers in total including the existing Worker, below the Free limit of five.
+- Actual plan change or purchase: none. The new Workers/D1s and official Turnstile test keys are within the documented Free quotas; observed billable spend from this work is **$0**. Account billing analytics still need review to confirm a final invoice amount. Workers Free allows 100,000 requests/day and 10 ms CPU/request; D1 Free allows 5 million rows read/day, 100,000 rows written/day and 5 GB account storage. These are shared account limits, not per-shop guarantees.
+- Public demo: https://autolead-pilot-demo.autolead-ai-gmn.workers.dev/ . Pilot health endpoints: https://autolead-pilot-bayline.autolead-ai-gmn.workers.dev/health and https://autolead-pilot-cedar.autolead-ai-gmn.workers.dev/health . Both reported `enabled:true`, `testOnly:true`, `mail:SIMULATED` at deployment.
+- Bayline widget loaded from the separate demo site after correcting Cloudflare's static route rewrite from `/widget.html` to `/widget`. The owner page remained unframeable.
+- First real-browser fictional submission was **rejected** with `CHALLENGE_FAILED` and saved no request: Cloudflare's official test Siteverify response returns `hostname:example.com` and `metadata.result_with_testing_key:true`, without `action` or `cdata`. The local correction accepts that response only while `PILOT_TEST` is on; the real-pilot branch continues to require exact hostname/action/shop. The correction passed 50 local tests and is awaiting separate approval before deployment. Do not claim a successful cloud intake yet.
+- No Resend account, key, verified sender or real notification was connected. Google button renders on the new owner page, but new pilot origins and actual owner authorization have not been confirmed. No real customer data is accepted.
+- Browser desktop check: the one-line embed loads the Bayline iframe from the separate demo Worker and displays the fixed fictional values, shop services/hours controls, consent and Turnstile test widget. The visitor screenshot showed the test banner and no claim of generative AI. A mobile-width cloud browser verification remains open; the browser viewport override did not change the active tab in this session. Earlier local responsive checks do not replace that cloud check.
+
+## Cloud test plan after approval
+
+1. Deploy the locally tested Turnstile test-mode correction to **only** the two new pilot Workers, preserving `TEST_ONLY=true`, `REAL_DATA_APPROVED=false`, `PRIVACY_REVIEWED=false`, `MAIL_TRANSPORT=SIMULATED`.
+2. Submit one fixed fictional request to each Worker from the demo pages. Confirm one D1 `requests` and one outbox row per shop before the scheduled notification run, then confirm `sent` with simulated provider ID. Retry each request ID and confirm no extra row/job. Attempt an arbitrary contact and confirm rejection without persistence.
+3. Check owner API returns 401 without a Google token. Add the two new Worker origins to the existing Google OAuth Web client **only with owner approval**; sign in as the already verified Bayline owner and confirm access to Bayline, denial to Cedar, status update and sign-out. Cedar's fictional owner subject remains separate.
+4. If the owner connects Resend Free, verifies a sender and confirms `autolead.ai.gmn@gmail.com` as the recipient, store the API key and sender only in Cloudflare secrets, switch **only one** pilot Worker to `RESEND_TEST`, send one fictional notification, then return it to `SIMULATED`. Do not enable real-data intake.
+5. Test desktop and phone layouts, record Cloudflare Worker CPU/error metrics, and remove only the newly created fictional test requests via authenticated owner deletion. Verify tombstones prevent replay. Do not delete D1 databases.
+
+## Reproducible setup and rollback
+
+From `starter2/`, run `node pilot/prepare-cloud-test.mjs bayline EXISTING_D1_UUID` or `cedar EXISTING_D1_UUID`. The script writes ignored disabled configs; it never creates a resource. Apply `pilot/migrations/0001_initial.sql` to the corresponding new D1. Set `OWNER_SUB`, `OWNER_EMAIL`, `SESSION_SECRET`, `TURNSTILE_SECRET` with Wrangler secrets, not Git. The published `PILOT_TEST` configs use Cloudflare's official always-pass test sitekey/secret and the fixed identities in `fixture.js`. The local configs remain ignored.
+
+To pause intake without deleting data, set `MODE=TEST_ONLY` in the new Worker's ignored config and deploy that Worker only. Preserve its D1 database and inspect its pending outbox before any later resumption. Rollback a code regression by deploying the prior Worker version in Cloudflare, again only for the affected new Worker. Restoring D1 can resurrect deleted data; replay deletion tombstones before using any restored database with real data. This recovery procedure still needs a live drill before first client.
+
+## Remaining blockers to a first real shop
+
+No real Turnstile widget, Resend sender/key, pilot OAuth origin verification, actual shop privacy notice/processor approval, real-notification canary, or measured Free CPU headroom yet. The demo widget is rule-based and structured; it does not provide the free-text dialogue of the older demonstration. Reusing that parser is feasible behind the validated form handoff, but requires separate integration and regression tests before making that claim.
+
+Official limits: [Workers Free](https://developers.cloudflare.com/workers/platform/limits/), [D1 Free](https://developers.cloudflare.com/d1/platform/pricing/), [Turnstile Free](https://developers.cloudflare.com/turnstile/plans/), [Turnstile test keys](https://developers.cloudflare.com/turnstile/troubleshooting/testing/), [Resend Free](https://resend.com/pricing).

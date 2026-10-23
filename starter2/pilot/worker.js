@@ -1,6 +1,7 @@
 import {problem,readJson,sameOrigin,signSession,session,rate,sha,googleIdentity} from '../src/security.js';
 import {listRequests} from '../src/store.js';
-import {shopConfig,privateConfig,pilotEnabled} from './config.js';
+import {shopConfig,privateConfig,pilotEnabled,testEnabled} from './config.js';
+import {testFixture} from './fixture.js';
 import {savePilotRequest} from './intake.js';
 import {deliverDue,retention} from './notify.js';
 
@@ -14,13 +15,13 @@ function wrap(response,frameOrigin){
 async function authorized(request,env,now){const sub=await googleIdentity(request,env,now);if(sub!==env.OWNER_SUB)throw problem('FORBIDDEN',403);await rate(env.PILOT_DB,'owner',120,60000,now);}
 async function handle(request,env){
  const url=new URL(request.url),now=Date.now();
- if(url.pathname==='/health'&&request.method==='GET')return json({ok:true,enabled:pilotEnabled(env),mail:pilotEnabled(env)?'RESEND':'DISABLED'});
+ if(url.pathname==='/health'&&request.method==='GET')return json({ok:true,enabled:pilotEnabled(env),testOnly:testEnabled(env),mail:pilotEnabled(env)?env.MAIL_TRANSPORT:'DISABLED'});
  if(!pilotEnabled(env)){
   if(request.method==='GET'&&!url.pathname.startsWith('/api/')&&env.ASSETS)return env.ASSETS.fetch(request);
   throw problem('PILOT_DISABLED',503);
  }
  const c=privateConfig(env),db=env.PILOT_DB;if(!db)throw problem('PILOT_NOT_CONFIGURED',503);
- if(url.pathname==='/api/config'&&request.method==='GET')return json({shop:c});
+ if(url.pathname==='/api/config'&&request.method==='GET')return json({shop:c,testOnly:testEnabled(env),testFixture:testEnabled(env)?testFixture(c.id):null});
  if(url.pathname==='/auth-config'&&request.method==='GET')return json({clientId:env.GOOGLE_CLIENT_ID});
  if(url.pathname==='/api/session'&&request.method==='POST'){
   sameOrigin(request);const body=await readJson(request,1024);if(Object.keys(body).length||!env.SESSION_SECRET)throw problem('INVALID_SESSION');
@@ -49,6 +50,6 @@ async function handle(request,env){
  throw problem('NOT_FOUND',404);
 }
 export default {
- async fetch(request,env){let frame="'none'";try{if(request.method==='GET'&&new URL(request.url).pathname==='/widget.html')frame="'self' "+shopConfig(env).siteOrigin;return wrap(await handle(request,env),frame);}catch(e){return wrap(json({error:e.status?e.message:'INTERNAL_ERROR',retryable:[429,503].includes(e.status)},e.status||500),frame);}},
+ async fetch(request,env){let frame="'none'";const route=new URL(request.url).pathname;try{if(request.method==='GET'&&['/widget','/widget.html'].includes(route))frame="'self' "+shopConfig(env).siteOrigin;return wrap(await handle(request,env),frame);}catch(e){return wrap(json({error:e.status?e.message:'INTERNAL_ERROR',retryable:[429,503].includes(e.status)},e.status||500),frame);}},
  async scheduled(_event,env,ctx){if(!pilotEnabled(env))return;ctx.waitUntil((async()=>{try{const c=privateConfig(env);await retention(env.PILOT_DB,Date.now());await deliverDue(env.PILOT_DB,env,c,Date.now());}catch{/* Cloudflare errors are surfaced in Worker logs; never log request payloads. */}})());}
 };

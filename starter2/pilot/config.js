@@ -18,7 +18,9 @@ export function shopConfig(env){
 }
 export function privateConfig(env){
  const c=shopConfig(env);
- if(!email(env.OWNER_EMAIL)||!email(env.RESEND_FROM)||typeof env.OWNER_SUB!=='string'||!/^\d{10,30}$/.test(env.OWNER_SUB)||typeof env.GOOGLE_CLIENT_ID!=='string'||!/^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(env.GOOGLE_CLIENT_ID)||typeof env.TURNSTILE_SECRET!=='string'||env.TURNSTILE_SECRET.length<16||typeof env.RESEND_API_KEY!=='string'||!env.RESEND_API_KEY.startsWith('re_')||typeof env.SESSION_SECRET!=='string'||env.SESSION_SECRET.length<32)throw problem('PILOT_NOT_CONFIGURED',503);
+ if(!email(env.OWNER_EMAIL)||typeof env.OWNER_SUB!=='string'||!/^\d{10,30}$/.test(env.OWNER_SUB)||typeof env.GOOGLE_CLIENT_ID!=='string'||!/^\d+-[a-z0-9]+\.apps\.googleusercontent\.com$/.test(env.GOOGLE_CLIENT_ID)||typeof env.TURNSTILE_SECRET!=='string'||env.TURNSTILE_SECRET.length<16||typeof env.SESSION_SECRET!=='string'||env.SESSION_SECRET.length<32)throw problem('PILOT_NOT_CONFIGURED',503);
+ if(['RESEND','RESEND_TEST'].includes(env.MAIL_TRANSPORT)&&(!email(env.RESEND_FROM)||typeof env.RESEND_API_KEY!=='string'||!env.RESEND_API_KEY.startsWith('re_')))throw problem('PILOT_NOT_CONFIGURED',503);
  return c;
 }
-export function pilotEnabled(env){return env.MODE==='PILOT'&&env.REAL_DATA_APPROVED==='true'&&env.MAIL_TRANSPORT==='RESEND'&&env.PRIVACY_REVIEWED==='true';}
+export function testEnabled(env){return env.MODE==='PILOT_TEST'&&env.TEST_ONLY==='true'&&env.REAL_DATA_APPROVED==='false'&&env.PRIVACY_REVIEWED==='false'&&['SIMULATED','RESEND_TEST'].includes(env.MAIL_TRANSPORT);}
+export function pilotEnabled(env){return testEnabled(env)||env.MODE==='PILOT'&&env.REAL_DATA_APPROVED==='true'&&env.MAIL_TRANSPORT==='RESEND'&&env.PRIVACY_REVIEWED==='true';}

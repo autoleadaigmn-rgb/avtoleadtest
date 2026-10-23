@@ -1,6 +1,6 @@
-# Starter pilot candidate — disabled by default
+# Starter pilot candidate — live intake disabled by default
 
-This folder is a separate, **unpublished** candidate for one real shop per Worker and one D1 database per shop. It does not alter the existing `autolead-starter2-test` Worker, Google Sheets CRM, Gmail drafts, GitHub Pages, or test D1 databases. `wrangler.example.jsonc` and generated configs have `MODE=TEST_ONLY`, `MAIL_TRANSPORT=SIMULATED`, `REAL_DATA_APPROVED=false`, and `PRIVACY_REVIEWED=false`; the pilot API returns `PILOT_DISABLED` until all four values are deliberately changed. Do not turn them on without the owner's explicit separate approval and the checklist below.
+This folder is a separate candidate for one real shop per Worker and one D1 database per shop. It does not alter the existing `autolead-starter2-test` Worker, Google Sheets CRM, Gmail drafts, GitHub Pages, or test D1 databases. The original `wrangler.example.jsonc` remains disabled by default. Two separate fictional Workers were deployed in `PILOT_TEST` mode on 2026-10-23; this mode accepts only the fixed `example.com` identities in `fixture.js`, uses the official Turnstile test keys, and simulates email. See [CLOUD-TEST-REPORT.md](CLOUD-TEST-REPORT.md) for their exact status. Real-data intake still requires `MODE=PILOT`, `MAIL_TRANSPORT=RESEND`, `REAL_DATA_APPROVED=true`, and `PRIVACY_REVIEWED=true`, plus a separately approved client setup.
 
 ## Prepared behavior
 
