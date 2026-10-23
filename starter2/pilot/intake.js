@@ -1,5 +1,5 @@
 import {problem,sha,rate} from '../src/security.js';
-import {resolveAppointmentTime} from '../public/appointment-time.js';
+import {resolveStructuredAppointmentTime} from '../public/appointment-time.js';
 import {testEnabled} from './config.js';
 import {requireTestFixture} from './fixture.js';
 
@@ -12,7 +12,7 @@ export function validateRequest(input,c,now){
  if(!uuid.test(input.id||'')||input.consent!==true||input.policy!==c.policyVersion||input.website!==''||!clean(input.name,2,100)||!clean(input.vehicle,2,120)||!clean(input.issue,10,2000)||!clean(input.preferredTime,10,80))throw problem('INVALID_REQUEST');
  if(!validEmail(input.email)||!validPhone(input.phone)||!input.email&&!input.phone)throw problem('INVALID_CONTACT');
  if(!/^20\d{2}-\d{2}-\d{2}(?:T(?:[01]\d|2[0-3]):[0-5]\d)?$/.test(input.preferredTime))throw problem('INVALID_TIME');
- const resolved=resolveAppointmentTime(input.preferredTime.replace('T',' at '),{now,timeZone:c.timeZone});if(resolved.question||!resolved.date)throw problem('INVALID_TIME');
+ const resolved=resolveStructuredAppointmentTime(input.preferredTime,{now,timeZone:c.timeZone});if(resolved.question||!resolved.date)throw problem('INVALID_TIME');
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:c.timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(now)).map(p=>[p.type,p.value]));
  const localToday=Date.UTC(+parts.year,+parts.month-1,+parts.day);
  const days=(Date.parse(resolved.date+'T00:00:00Z')-localToday)/DAY;

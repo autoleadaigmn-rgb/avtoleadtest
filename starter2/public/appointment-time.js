@@ -38,3 +38,13 @@ export function resolveAppointmentTime(raw,options={}){
  if(candidates.length>1)return {question:'That local time occurs twice because the clocks change in '+r.timeZone+'. Please choose an unambiguous time or ask the shop to confirm.'};
  return r;
 }
+
+// HTML datetime-local/time fields already use a 24-hour clock. Preserve that
+// unambiguous meaning while keeping free-text times such as "at 10" ambiguous.
+export function resolveStructuredAppointmentTime(raw,options={}){
+ const match=String(raw||'').match(/^(20\d{2}-\d{2}-\d{2})(?:T([01]\d|2[0-3]):([0-5]\d))?$/);
+ if(!match)return {question:'Please enter a valid date and time.'};
+ if(!match[2])return resolveAppointmentTime(match[1],options);
+ const hour=+match[2],suffix=hour<12?'AM':'PM',twelve=hour%12||12;
+ return resolveAppointmentTime(`${match[1]} at ${twelve}:${match[3]} ${suffix}`,options);
+}
