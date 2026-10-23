@@ -42,6 +42,15 @@ test('forged, expired and cross-shop sessions are rejected',async()=>{
 test('unauthenticated and spoofed owner headers cannot read requests',async()=>{
  assert.equal((await call('/api/owner/bayline/requests')).status,401);
  assert.equal((await call('/api/owner/bayline/requests',{headers:{'x-owner-email':'fictional-owner@example.com'}})).status,401);
+ assert.equal((await call('/api/owner/identity')).status,401);
+});
+test('identity bootstrap returns only the verified Google subject, without granting shop access',async()=>{
+ const token=lab.token('unassigned');
+ const identity=await call('/api/owner/identity',{token});
+ assert.equal(identity.status,200);assert.deepEqual(identity.data,{sub:'unassigned'});
+ assert.equal((await call('/api/owner/bayline/config',{token})).status,403);
+ assert.equal((await call('/api/owner/cedar-ridge/requests',{token})).status,403);
+ assert.equal((await call('/api/owner/identity',{token:lab.token('unassigned',{exp:1})})).status,401);
 });
 test('JWT signature, expiry, audience, issuer and verified identity are enforced',async()=>{
  for(const token of [lab.token('owner-a',{},true),lab.token('owner-a',{exp:1}),lab.token('owner-a',{aud:'other'}),lab.token('owner-a',{iss:'https://attacker.example'}),lab.token('owner-a',{email_verified:false})])assert.equal((await call('/api/owner/bayline/requests',{token})).status,401);

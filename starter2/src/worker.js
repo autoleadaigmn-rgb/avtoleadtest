@@ -1,5 +1,5 @@
 import {TENANTS,FIXTURES,tenantFor} from './tenants.js';
-import {problem,readJson,sameOrigin,signSession,session,rate,sha,owner} from './security.js';
+import {problem,readJson,sameOrigin,signSession,session,rate,sha,owner,googleIdentity} from './security.js';
 import {saveRequest,deliverDue,retention,listRequests} from './store.js';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8'}});
 function headers(response,ancestors="'none'"){
@@ -15,6 +15,7 @@ async function handle(request,env){
  const url=new URL(request.url),now=Date.now();
  if(url.pathname==='/health'&&request.method==='GET')return json({ok:true,mode:'TEST_ONLY',realMail:false,realData:false});
  if(url.pathname==='/auth-config'&&request.method==='GET')return json({clientId:env.GOOGLE_CLIENT_ID||'NOT_CONNECTED'});
+ if(url.pathname==='/api/owner/identity'&&request.method==='GET')return json({sub:await googleIdentity(request,env,now)});
  const match=url.pathname.match(/^\/api\/(shops|owner)\/([a-z0-9-]+)\/([a-z-]+)(?:\/([0-9a-f-]+))?$/);
  if(!match){
   if(request.method!=='GET'||url.pathname.startsWith('/api/'))throw problem('NOT_FOUND',404);

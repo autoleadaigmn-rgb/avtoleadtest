@@ -1,8 +1,9 @@
 const $=id=>document.getElementById(id),shop=new URLSearchParams(location.search).get('shop')||'bayline';
 let token='',cursor='',busy=false;
 async function api(path,body){const r=await fetch('/api/owner/'+encodeURIComponent(shop)+'/'+path,{method:body?'POST':'GET',credentials:'omit',headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok)throw Error(d.error);return d;}
+async function verifiedSubject(){const r=await fetch('/api/owner/identity',{credentials:'omit',headers:{Authorization:'Bearer '+token}});if(!r.ok)throw Error('UNAUTHORIZED');return (await r.json()).sub;}
 function signedOut(){token='';$('requests').replaceChildren();$('inbox').hidden=true;$('logout').hidden=true;$('auth-status').textContent='Signed out. No records are displayed.';}
-async function login(t){token=t;try{const {shop:c}=await api('config');$('title').textContent=c.name+' · test inbox';$('inbox').hidden=false;$('logout').hidden=false;$('auth-status').textContent='Authorized for this test shop. Token stays in memory.';await load();}catch(e){signedOut();$('auth-status').textContent='Access denied: '+e.message;}}
+async function login(t){token=t;try{const {shop:c}=await api('config');$('title').textContent=c.name+' · test inbox';$('inbox').hidden=false;$('logout').hidden=false;$('auth-status').textContent='Authorized for this test shop. Token stays in memory.';await load();}catch(e){let subject='';if(e.message==='FORBIDDEN'){try{subject=await verifiedSubject();}catch{}}signedOut();$('auth-status').textContent=subject?'Google identity verified, but this shop is not assigned. Setup subject ID (not a token): '+subject+'. Share only this ID with the project setup assistant.':'Access denied: '+e.message;}}
 async function load(older=false){
  if(busy)return;busy=true;
  try{
