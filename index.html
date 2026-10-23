@@ -53,7 +53,7 @@ function extractDetails(raw){
  let vehicles=[...positive.matchAll(vr)].filter(v=>+v[1]>=1900&&+v[1]<=new Date().getFullYear()+2);
  if(vehicles.length===1||/actually|correction|instead|now drive/i.test(text)){m=vehicles.at(-1);if(m)d.vehicle=m[1]+' '+m[2]+' '+m[3];}
  if(m=positive.match(/\b(?:vehicle|car)\s*:\s*((?:19|20)\d{2}\s+[a-z][a-z0-9-]*\s+[a-z0-9-]+)\b/i))d.vehicle=m[1];
- const nr=/\b(?:my name is|name\s*[:=]|call me|i am|i'm)\s+([a-z][a-z'-]*(?:\s+[a-z][a-z'-]*){0,2}?)(?=\s*[,.;!]|\s+(?:and|my|i|with|email|phone|for|at|driving|here)\b|$)/gi;
+ const nr=/\b(?:my name is|name\s*[:=]|call me|i am|i'm)\s+([\p{L}][a-z'-]*(?:\s+[\p{L}][a-z'-]*){0,2}?)(?=\s*[,.;!]|\s+(?:and|my|i|with|email|phone|for|at|driving|here)\b|$)/giu;
  const names=[...positive.matchAll(nr)].filter(x=>! /^(?:having|looking|available|free|ready|interested|not|driving|trying|wondering|getting|a|an|the|alex@example)$/i.test(x[1].split(' ')[0]));
  if(names.length)d.name=names.at(-1)[1].replace(/\b\w/g,c=>c.toUpperCase());
  const times=[...positive.matchAll(/\b(?:next\s+)?(?:weekday|week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight)(?:\s+(?:morning|afternoon|evening))?(?:\s+(?:at|after|before|around)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)?|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s+20\d{2})?(?:\s+(?:at|after|before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm))?|\b20\d{2}-\d{2}-\d{2}(?:\s+(?:at\s+)?\d{1,2}:\d{2})?|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm))?|\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi)];
@@ -61,7 +61,7 @@ function extractDetails(raw){
  if(/brakes? (?:squeal|squeak)|squeal.*stop/i.test(positive))d.issue='Brakes squeal when stopping';else if(/tire.*(?:losing|lose|low).*air|flat tire|puncture/i.test(positive))d.issue='Tire losing air';else if(/check.engine|engine light/i.test(positive))d.issue='Check engine light is on';else if(/routine service before a road trip/i.test(positive))d.issue='Routine service before a road trip';
  else {
   const clauses=positive.split(/[;\n.!?]+|,(?!\d)/).map(x=>x.trim()).filter(Boolean);
-  const concern=clauses.find(x=>/\b(noise|rattle|rattling|leak|leaking|vibrat|shak|jerk|stalls?|overheat|won't start|doesn't start|not starting|battery|brakes?|tires?|tyres?|oil change|maintenance|alignment|air conditioning|a\/c|transmission|clunk|smell|pulling|squeak|squeal|grind|heater|windshield|wiper)\b/i.test(x));
+  const concern=clauses.find(x=>/\b(noise|rattle|rattling|leak|leaking|vibrat|shak|jerk|stalls?|overheat|won't start|doesn't start|not starting|battery|brakes?|tires?|tyres?|oil change|maintenance|alignment|air conditioning|a\/c|transmission|clunk|smell|pulling|squeak|squeal|grind|heater|windshield|wiper|window|windscreen|door|coolant|exhaust|steering|suspension|ac)\b/i.test(x));
   if(concern){let clean=concern.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'').replace(/\b(?:my name is|i am|i'm)\s+[^,]+?\band\b/i,'').trim();if(d.vehicle)clean=clean.split(d.vehicle).join('').replace(/^my\s+/i,'').replace(/^(?:has|is|makes|needs)\s+/i,'').trim();d.issue=clean;}
   if(m=positive.match(/(?:problem|issue|description)\s*[:=]\s*([^;\n]+)/i))d.issue=m[1].trim();
  }
@@ -92,6 +92,7 @@ function respond(previous,raw){
   if(s.phase==='name'&&!extracted.name&&/^[\p{L}][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]+){0,3}$/u.test(plain)&&!/(hello|unknown|whatever|cancel|banana|asdf)/i.test(plain))extracted.name=plain;
   if(s.phase==='issue'&&!extracted.issue&&/brake|tire|oil|engine|noise|leak|battery|start|service|maintenance|vibrat|shak|air|light/i.test(plain)&&plain.length>=5)extracted.issue=plain.slice(0,300);}
  if(s.phase==='time'&&!extracted.preferredTime&&!Object.keys(extracted).length&&/^(?:after|before|around|at|on|between)\b/i.test(input))extracted.preferredTime=input;
+ if(s.phase==='issue'&&!extracted.issue&&!/\?|^(?:hello|hi|thanks|unknown|whatever|asdf|purple banana)/i.test(input)&&input.length>=5)extracted.issue=input;
  if(!edit&&s.draft.service&&extracted.service&&s.phase!=='service'&&s.phase!=='idle')delete extracted.service;
  const emails=[...input.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0]);
  const ambiguousContact=new Set(emails).size>1&&!/actually|instead|not|correction/i.test(input);
