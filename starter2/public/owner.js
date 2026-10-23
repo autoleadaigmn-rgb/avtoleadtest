@@ -29,4 +29,4 @@ if(['127.0.0.1','localhost'].includes(location.hostname)){
 }
 const {clientId}=await (await fetch('/auth-config')).json();
 if(clientId==='NOT_CONNECTED'||clientId==='starter2-local-client')$('auth-status').textContent='External Google login is not connected. Local lab offers a fictional owner only.';
-else {const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=()=>{google.accounts.id.initialize({client_id:clientId,callback:r=>login(r.credential)});google.accounts.id.renderButton($('google-button'),{theme:'outline',size:'large'});};s.onerror=()=>{$('auth-status').textContent='Google sign-in is unavailable.';};document.head.append(s);}
+else {const s=document.createElement('script');s.src='https://accounts.google.com/gsi/client';s.onload=()=>{google.accounts.id.initialize({client_id:clientId,callback:r=>login(r.credential)});google.accounts.id.renderButton($('google-button'),{theme:'outline',size:'large'});$('auth-status').textContent='Choose the approved Google test account to open this private inbox.';};s.onerror=()=>{$('auth-status').textContent='Google sign-in is unavailable.';};document.head.append(s);}
