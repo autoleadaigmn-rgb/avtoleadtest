@@ -1,0 +1,17 @@
+{
+  "id": "cedar-pilot",
+  "name": "Cedar Ridge Garage (fictional pilot)",
+  "logoUrl": "",
+  "services": ["Brake inspection", "Oil change", "Tire service"],
+  "weeklyHours": {"mon": [["07:00", "17:00"]], "tue": [["07:00", "17:00"]], "wed": [["07:00", "17:00"]], "thu": [["07:00", "17:00"]], "fri": [["07:00", "17:00"]], "sat": [], "sun": []},
+  "timeZone": "America/Phoenix",
+  "contact": {"email": "cedar@example.com", "phone": "+1 602-555-0100"},
+  "colors": {"primary": "#243044", "accent": "#ffcf70", "background": "#faf7f0"},
+  "greeting": "Welcome. I can prepare a service request for the shop. An appointment is not confirmed.",
+  "siteOrigin": "https://other.example",
+  "privacyUrl": "https://other.example/privacy",
+  "retentionDays": 30,
+  "dailyRequestLimit": 20,
+  "turnstileSiteKey": "test-site-key-67890",
+  "policyVersion": "pilot-2026-v1"
+}

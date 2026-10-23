@@ -7,3 +7,4 @@ build/
 snapshots/
 test-results/
 wrangler.test-cloud.jsonc
+pilot/wrangler.local-*.jsonc

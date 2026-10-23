@@ -6,7 +6,7 @@
   "engines": {"node": ">=22"},
   "scripts": {
     "build": "node tools/build.mjs",
-    "test": "node tools/build.mjs && node --test --test-concurrency=1 test/*.test.mjs",
+    "test": "node tools/build.mjs && node pilot/build.mjs && node --test --test-concurrency=1 test/*.test.mjs pilot/*.test.mjs",
     "dev": "node tools/dev.mjs",
     "check": "node tools/preflight.mjs",
     "snapshot": "node tools/snapshot.mjs",

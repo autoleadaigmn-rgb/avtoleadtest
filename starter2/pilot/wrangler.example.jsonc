@@ -1,0 +1,21 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "REPLACE-WITH-APPROVED-PILOT-NAME",
+  "main": "build/worker.mjs",
+  "compatibility_date": "2026-07-30",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {"directory": "public", "binding": "ASSETS", "run_worker_first": true},
+  "vars": {
+    "MODE": "TEST_ONLY",
+    "MAIL_TRANSPORT": "SIMULATED",
+    "REAL_DATA_APPROVED": "false",
+    "PRIVACY_REVIEWED": "false",
+    "GOOGLE_CLIENT_ID": "NOT_CONNECTED",
+    "SHOP_CONFIG": "REPLACE_WITH_VALIDATED_SHOP_JSON"
+  },
+  "d1_databases": [
+    {"binding": "PILOT_DB", "database_name": "REPLACE-WITH-NEW-SHOP-D1", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations", "remote": true}
+  ],
+  "triggers": {"crons": ["*/15 * * * *"]}
+}

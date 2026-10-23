@@ -1,0 +1,17 @@
+{
+  "id": "bayline-pilot",
+  "name": "Bayline Auto Care (fictional pilot)",
+  "logoUrl": "",
+  "services": ["Brake inspection", "Oil change", "Tire service", "Maintenance"],
+  "weeklyHours": {"mon": [["08:00", "18:00"]], "tue": [["08:00", "18:00"]], "wed": [["08:00", "18:00"]], "thu": [["08:00", "18:00"]], "fri": [["08:00", "18:00"]], "sat": [], "sun": []},
+  "timeZone": "America/Chicago",
+  "contact": {"email": "service@example.com", "phone": "+1 713-555-0100"},
+  "colors": {"primary": "#182321", "accent": "#d7fa75", "background": "#f8faf6"},
+  "greeting": "Welcome. I can prepare a service request for the shop. An appointment is not confirmed.",
+  "siteOrigin": "https://shop.example",
+  "privacyUrl": "https://shop.example/privacy",
+  "retentionDays": 30,
+  "dailyRequestLimit": 20,
+  "turnstileSiteKey": "test-site-key-12345",
+  "policyVersion": "pilot-2026-v1"
+}
