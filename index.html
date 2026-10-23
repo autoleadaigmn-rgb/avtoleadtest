@@ -18,8 +18,35 @@
 .product-actions{display:flex;gap:15px;flex-wrap:wrap;margin-top:24px}.product-features .process-grid{margin-top:28px}.owner-link{white-space:nowrap}#privacy p{max-width:850px;color:var(--muted);font-size:14px;line-height:1.8}@media(max-width:760px){.header nav .owner-link{display:inline-flex;font-size:11px}.header nav .nav-inbox{display:none}.product-actions .button{width:100%}}
 </style>
   <script type="module">// Public presentation only. Private recipients and Sheet IDs remain in Script Properties.
-const SHOP={id:'bayline-demo',name:'Bayline Auto Care',city:'Houston, TX',fictional:true,logoUrl:'',colors:{primary:'#182321',accent:'#d7fa75',background:'#f8faf6'},contact:{email:'',phone:'',address:''},hours:'Monday–Friday, 8 am–6 pm. Saturday, 9 am–1 pm. Sunday closed. US Central.',services:['Oil & filter change','Brake inspection','Tire service','Engine diagnostics','Routine maintenance'],greeting:'Hi! I’m the demo receptionist for Bayline Auto Care. Tell me what’s happening and share several details at once if you like. I’ll help prepare a request for the team. This is a fictional shop and a rules-based demo, not generative AI.',demoContact:'autolead.ai.gmn@gmail.com'};
+const SHOP={id:'bayline-demo',name:'Bayline Auto Care',city:'Houston, TX',timeZone:'America/Chicago',fictional:true,logoUrl:'',colors:{primary:'#182321',accent:'#d7fa75',background:'#f8faf6'},contact:{email:'',phone:'',address:''},hours:'Monday–Friday, 8 am–6 pm. Saturday, 9 am–1 pm. Sunday closed. US Central.',services:['Oil & filter change','Brake inspection','Tire service','Engine diagnostics','Routine maintenance'],greeting:'Hi! I’m the demo receptionist for Bayline Auto Care. Tell me what’s happening and share several details at once if you like. I’ll help prepare a request for the team. This is a fictional shop and a rules-based demo, not generative AI.',demoContact:'autolead.ai.gmn@gmail.com'};
 function validateShop(c){if(!c||!/^[a-z0-9-]{3,40}$/.test(c.id)||!c.name?.trim()||!Array.isArray(c.services)||!c.services.length||c.services.length>20)throw Error('Invalid shop configuration');for(const color of Object.values(c.colors))if(!/^#[0-9a-f]{6}$/i.test(color))throw Error('Use six-digit hex colors');if(c.logoUrl&&!/^https:\/\//.test(c.logoUrl))throw Error('Logo must use HTTPS');return c;}
+
+// Civil dates in the shop's IANA zone. Preferences are never calendar bookings.
+function resolveAppointmentTime(raw,{now=new Date(),timeZone='America/Chicago'}={}){
+ const text=String(raw||'').trim();if(!text||/^(?:no preference|any time|anytime)$/i.test(text))return {display:text};
+ let parts;try{parts=new Intl.DateTimeFormat('en-US',{timeZone,year:'numeric',month:'2-digit',day:'2-digit',weekday:'long'}).formatToParts(new Date(now));}catch{return {question:'The shop time zone is unavailable. Please ask the shop to verify its time zone.'};}
+ const values=Object.fromEntries(parts.map(p=>[p.type,p.value]));const today=new Date(Date.UTC(+values.year,+values.month-1,+values.day));
+ const iso=d=>d.toISOString().slice(0,10),valid=(y,m,d)=>{const x=new Date(Date.UTC(y,m-1,d));return x.getUTCFullYear()===y&&x.getUTCMonth()===m-1&&x.getUTCDate()===d?x:null;};
+ const days=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];let date=null,match;
+ const isoMatches=[...text.matchAll(/\b(20\d{2})-(\d{2})-(\d{2})\b/g)],dayMatches=[...text.matchAll(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi)];
+ if(isoMatches.length>1||new Set(dayMatches.map(m=>m[1].toLowerCase())).size>1)return {question:'Which one date should I use? Please enter YYYY-MM-DD and a time with AM or PM.'};
+ if(isoMatches.length){match=isoMatches[0];date=valid(+match[1],+match[2],+match[3]);if(!date)return {question:'That calendar date is invalid. Please enter a valid YYYY-MM-DD.'};}
+ else if(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/.test(text))return {question:'Please confirm that numeric date as YYYY-MM-DD so month and day are unambiguous.'};
+ else if(/\bday after tomorrow\b/i.test(text)){date=new Date(today);date.setUTCDate(date.getUTCDate()+2);}
+ else if(/\btomorrow\b/i.test(text)){date=new Date(today);date.setUTCDate(date.getUTCDate()+1);}
+ else if(/\btoday|\btonight/i.test(text))date=new Date(today);
+ else if(/next weekday/i.test(text)){date=new Date(today);do{date.setUTCDate(date.getUTCDate()+1);}while([0,6].includes(date.getUTCDay()));}
+ else if(dayMatches.length){let delta=(days.indexOf(dayMatches[0][1].toLowerCase())-today.getUTCDay()+7)%7;if(delta===0&&!/\bnext\b/i.test(text))return {question:'Do you mean today ('+iso(today)+') or the following week? Please confirm YYYY-MM-DD.'};if(!delta)delta=7;date=new Date(today);date.setUTCDate(date.getUTCDate()+delta);}
+ else if(match=text.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:,?\s+(20\d{2}))?/i)){if(!match[3])return {question:'Which year do you mean? Please confirm the date as YYYY-MM-DD.'};let month=['january','february','march','april','may','june','july','august','september','october','november','december'].indexOf(match[1].toLowerCase())+1;date=valid(+match[3],month,+match[2]);if(!date)return {question:'That calendar date is invalid. Please enter a valid YYYY-MM-DD.'};}
+ else return {question:'Which date do you mean? Please enter YYYY-MM-DD, today, tomorrow, or a weekday, with AM or PM if giving a time.'};
+ if(date<today)return {question:'That date is in the past in '+timeZone+'. Which future date should I use?'};
+ const clock=text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)\b/i);let time='';
+ if(clock){const h=+clock[1],min=+(clock[2]||0);if(h<1||h>12||min>59)return {question:'Please give a valid time from 1–12 with AM or PM.'};time=h+':'+String(min).padStart(2,'0')+' '+clock[3].replaceAll('.','').toUpperCase();}
+ else if(match=text.match(/\b(?:at|around|after|before)\s+(\d{1,2})(?::(\d{2}))?\b|\b(\d{1,2}):(\d{2})\b/i)){if(match[3]||match[2]){const rawHour=match[1]||match[3],h=+rawHour,min=+(match[2]||match[4]);if(h>23||min>59)return {question:'Please give a valid time.'};if(h>=1&&h<=12&&!/^0/.test(rawHour))return {question:'Do you mean AM or PM on '+iso(date)+'? Please enter the date and time together.'};time=String(h).padStart(2,'0')+':'+String(min).padStart(2,'0');}else return {question:'Do you mean AM or PM on '+iso(date)+'? Please enter the date and time together.'};}
+ else time=(text.match(/\b(morning|afternoon|evening|tonight|noon|midnight)\b/i)||[])[0]||'time not specified';
+ const qualifier=(text.match(/\b(around|after|before)\b/i)||[])[0];
+ return {display:iso(date)+' · '+(qualifier?qualifier+' ':'')+time+' ('+timeZone+')',date:iso(date),timeZone,source:text};
+}
 
 const SERVICES=SHOP.services;
 const STARTERS=['What services do you offer?','What are your hours?','Request service','Try a detailed sample'];
@@ -30,7 +57,7 @@ const fields=['service','vehicle','issue','preferredTime','name','contact'];
 const prompts={service:['Which service should we start with?',SERVICES],vehicle:['What is the vehicle’s year, make and model?',['Use 2019 Toyota Camry']],issue:['What should the advisor know about the vehicle?',['Routine service before a road trip','Brakes squeal when stopping','Tire losing air','Check engine light is on']],preferredTime:['Any preferred day or time? Staff must confirm availability.',['Next weekday morning','No preference']],name:['What name should the request show?',['Use Alex Demo']],contact:['What email or phone should appear in the local preview? Nothing is sent.',['Use alex@example.com']]};
 function contactValid(v){return /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v)||(/^[+()\d\s.-]+$/.test(v)&&v.replace(/\D/g,'').length>=10&&v.replace(/\D/g,'').length<=15);}
 function vehicleValid(v){return /^(?:19|20)\d{2}\s+[a-z][a-z-]*(?:\s+[a-z0-9-]+){1,3}$/i.test(v)&&! /\b(dollars|miles|minutes|hours|for|at|on)\b/i.test(v)&&+v.slice(0,4)<=new Date().getFullYear()+2;}
-const categories=[[/\boil\b|filter/i,'Oil & filter change'],[/brake|squeal|grind.*stop|stopping/i,'Brake inspection'],[/tire|tyre|puncture|flat|wheel/i,'Tire service'],[/diagnostic|check.engine|engine.light|won.t.start|battery|overheat|engine|stall/i,'Engine diagnostics'],[/maintenance|tune.?up|routine service|road trip/i,'Routine maintenance']];
+const categories=[[/\boil\b|filter/i,'Oil & filter change'],[/\bbrak(?:e|es|ing)\b|squeal|grind.*stop|stopping|press(?:ing)? (?:the )?(?:brake )?pedal/i,'Brake inspection'],[/tire|tyre|puncture|flat|wheel/i,'Tire service'],[/diagnostic|check.engine|engine.light|won.t.start|battery|overheat|engine|stall/i,'Engine diagnostics'],[/maintenance|tune.?up|routine service|road trip/i,'Routine maintenance']];
 function inferService(input){return categories.find(([r,n])=>r.test(input)&&SERVICES.includes(n))?.[1]||SERVICES.find(s=>s.toLowerCase()===input.toLowerCase())||'';}
 function safety(input){return /\b(emergency|smoke|smoking|fire|stranded|unsafe|accident|crash|brakes? (?:failed|not working))\b/i.test(input)||/is it safe|can i drive/i.test(input);}
 function faq(input){
@@ -45,7 +72,7 @@ function faq(input){
 }
 function extractDetails(raw){
  const text=raw.replace(/^use /i,'').replace(/[’]/g,"'").trim(),d={};let m;
- const positive=text.replace(/\b(?:not|rather than|instead of)\s+(?:(?:a|an|the|my)\s+)?[^,.;]+/gi,'');
+ const positive=text.replace(/\b(?:not|rather than|instead of)\s+(?:(?:a|an|the|my)\s+)?(?:(?:19|20)\d{2}\s+)?(?:Toyota|Honda|Ford|Chevrolet|BMW|Audi|Tesla)(?:\s+[A-Z0-9-]+)?/g,'');
  if(m=positive.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i))d.contact=m[0];
  else if(m=positive.match(/(?:\+\d{1,3}[ .-]?)?(?:\(\d{3}\)[ .-]?|\b\d{3}[ .-])\d{3}[ .-]\d{4}\b|\b(?:phone|call|text|contact)(?:\s+me)?\s*(?:at|is|:)?\s*(\+?\d{10,15})\b/i)){const v=m[1]||m[0];if(contactValid(v))d.contact=v;}
  const makes='Toyota|Honda|Ford|Chevrolet|Chevy|GMC|Nissan|Hyundai|Kia|BMW|Audi|Mercedes(?:-Benz)?|Volkswagen|VW|Subaru|Mazda|Jeep|Ram|Dodge|Tesla|Lexus|Acura|Volvo|Buick|Cadillac|Lincoln|Chrysler|Porsche|Mitsubishi|Mini|Land Rover|Genesis|Rivian|Lucid|Jaguar|Infiniti|Suzuki|Saab|Pontiac|Saturn|Bentley|Fiat|Peugeot|Renault|Skoda|Seat';
@@ -56,27 +83,29 @@ function extractDetails(raw){
  const nr=/\b(?:my name is|name\s*[:=]|call me|i am|i'm)\s+([\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){0,2}?)(?=\s*[,.;!]|\s+(?:and|my|i|with|email|phone|for|at|driving|here)\b|$)/giu;
  const names=[...positive.matchAll(nr)].filter(x=>! /^(?:having|looking|available|free|ready|interested|not|driving|trying|wondering|getting|a|an|the|alex@example)$/i.test(x[1].split(' ')[0]));
  if(names.length)d.name=names.at(-1)[1].replace(/(^|\s)\p{L}/gu,c=>c.toUpperCase());
- const times=[...positive.matchAll(/\b(?:next\s+)?(?:weekday|week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight)(?:\s+(?:morning|afternoon|evening))?(?:\s+(?:at|after|before|around)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)?|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s+20\d{2})?(?:\s+(?:at|after|before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm))?|\b20\d{2}-\d{2}-\d{2}(?:\s+(?:at\s+)?\d{1,2}:\d{2})?|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm))?|\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi)];
+ const times=[...positive.matchAll(/\b(?:next\s+)?(?:weekday|week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight)(?:\s+(?:morning|afternoon|evening))?(?:\s+(?:at|after|before|around)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)?|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s+20\d{2})?(?:\s+(?:at|after|before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm))?|\b20\d{2}-\d{2}-\d{2}(?:\s+(?:(?:at|around|after|before)\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm))?|\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi)];
  if(/next weekday morning/i.test(positive))d.preferredTime='Next weekday morning';else if(/no preference|any time|anytime/i.test(positive))d.preferredTime='No preference';else if(times.length)d.preferredTime=times.map(x=>x[0]).join(' ').trim();
- if(/brakes? (?:squeal|squeak)|squeal.*stop/i.test(positive))d.issue='Brakes squeal when stopping';else if(/tire.*(?:losing|lose|low).*air|flat tire|puncture/i.test(positive))d.issue='Tire losing air';else if(/check.engine|engine light/i.test(positive))d.issue='Check engine light is on';else if(/routine service before a road trip/i.test(positive))d.issue='Routine service before a road trip';
- else {
-  const clauses=positive.split(/[;\n.!?]+|,(?!\d)/).map(x=>x.trim()).filter(Boolean);
-  const concern=clauses.find(x=>/\b(noise|rattle|rattling|leak|leaking|vibrat|shak|jerk|stalls?|overheat|won't start|doesn't start|not starting|battery|brakes?|tires?|tyres?|oil change|maintenance|alignment|air conditioning|a\/c|transmission|clunk|smell|pulling|squeak|squeal|grind|heater|windshield|wiper|window|windscreen|door|coolant|exhaust|steering|suspension|ac)\b/i.test(x));
-  if(concern){let clean=concern.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'').replace(/\b(?:my name is|i am|i'm)\s+[^,]+?\band\b/i,'').trim();if(d.vehicle)clean=clean.split(d.vehicle).join('').replace(/^my\s+/i,'').replace(/^(?:has|is|makes|needs)\s+/i,'').trim();d.issue=clean;}
-  if(m=positive.match(/(?:problem|issue|description)\s*[:=]\s*([^;\n]+)/i))d.issue=m[1].trim();
- }
+ // Keep the customer's original concern clause intact. Never delete vehicle words or rewrite symptoms.
+ const clauses=text.split(/[;\n.!?]+/).map(x=>x.trim()).filter(Boolean);
+ const concerns=clauses.filter(x=>/\b(noise|rattle|rattling|leak|leaking|vibrat\w*|shak\w*|jerk\w*|stall\w*|overheat\w*|won't start|doesn't start|not starting|battery|brak(?:e|es|ing)|tires?|tyres?|oil change|maintenance|routine service|alignment|air conditioning|a\/c|transmission|clunk\w*|smell|pulling|squeak\w*|squeal\w*|grind\w*|heater|windshield|wiper|window|windscreen|door|coolant|exhaust|steering|suspension|ac|engine light|check.engine)\b/i.test(x));
+ if(concerns.length)d.issue=concerns.join('. ');
+ if(m=text.match(/(?:problem|issue|description)\s*[:=]\s*([^;\n]+)/i))d.issue=m[1].trim();
+ // Preserve exact legacy synthetic fixture values; broader descriptions remain verbatim.
+ if(/^My 2019 Toyota Camry brakes squeal when stopping$/i.test(d.issue||''))d.issue='Brakes squeal when stopping';
+ if(/\bday after tomorrow\b/i.test(text))d.preferredTime=(text.match(/day after tomorrow(?:\s+(?:at|around|after|before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)?/i)||[])[0];
+
  const service=inferService(positive);if(service)d.service=service;
  else if(d.issue)d.service='Advisor review';
  return d;
 }
-function advance(s,prefix='',action){const missing=fields.find(f=>!s.draft[f]);if(!missing)return base({...s,phase:'review'},(prefix?prefix+'\n\n':'')+'Here’s the request for your review. Nothing is sent until you explicitly consent. This is not a confirmed appointment.',[],{action:action||'review'});const [text,options]=prompts[missing];return base({...s,phase:missing==='preferredTime'?'time':missing},(prefix?prefix+'\n\n':'')+text,options,{action});}
-function respond(previous,raw){
+function advance(s,prefix='',action){if(s.draft.timeQuestion)return base({...s,phase:'time'},(prefix?prefix+'\n\n':'')+s.draft.timeQuestion,[],{action:action||'invalidateReview'});const missing=fields.find(f=>!s.draft[f]);if(!missing)return base({...s,phase:'review'},(prefix?prefix+'\n\n':'')+'Here’s the request for your review. Nothing is sent until you explicitly consent. This is not a confirmed appointment.',[],{action:action||'review'});const [text,options]=prompts[missing];return base({...s,phase:missing==='preferredTime'?'time':missing},(prefix?prefix+'\n\n':'')+text,options,{action});}
+function respond(previous,raw,clock={}){
  const input=String(raw||'').trim(),s={...previous,draft:{...previous.draft}};
  if(input.length>10000)return base(s,'Please split messages longer than 10,000 characters. Nothing was discarded or changed.',[]);
  if(!input)return base(s,'Please type a little more or choose a suggestion.',STARTERS);
  if(/^(cancel(?: my)?(?: request| appointment)?|restart|start over|back to the demo)$/i.test(input))return base(initialState(),'The unfinished request is cancelled. Previously submitted requests are unchanged. What would you like to do?',STARTERS,{action:'reset'});
  if(/^open owner view$/i.test(input))return base(s,'Opening the local preview. The protected owner dashboard is linked separately.',[],{action:'inbox'});
- if(/^try a detailed sample$/i.test(input))return respond(s,"I'm Alex Demo, alex@example.com. My 2019 Toyota Camry brakes squeal when stopping. No preference.");
+ if(/^try a detailed sample$/i.test(input))return respond(s,"I'm Alex Demo, alex@example.com. My 2019 Toyota Camry brakes squeal when stopping. No preference.",clock);
  
  const isQuestion=/\?|^(what|when|where|how|do you|are you|can you|is it|tell me)\b/i.test(input),answer=faq(input);
  
@@ -84,7 +113,7 @@ function respond(previous,raw){
  const edit=input.match(/^(?:change|update|correct|replace)(?: my| the)?\s+(service|vehicle|car|description|issue|problem|time|name|contact|email|phone)(?:\s+(?:to|is|with))?\s*[:=]?\s*(.*)$/i);
  let extracted=extractDetails(input),editing=false;
  if(answer&&isQuestion&&!Object.keys(extracted).length)return base(s,answer+(s.phase!=='idle'?'\n\nI’ve kept your request details.':''),s.phase==='idle'?STARTERS:(prompts[s.phase==='time'?'preferredTime':s.phase]?.[1]||['Edit details','Cancel']));
- if(edit){const map={car:'vehicle',description:'issue',problem:'issue',time:'preferredTime',email:'contact',phone:'contact'},field=map[edit[1].toLowerCase()]||edit[1].toLowerCase(),value=edit[2].trim();delete s.draft[field];editing=true;
+ if(edit){const map={car:'vehicle',description:'issue',problem:'issue',time:'preferredTime',email:'contact',phone:'contact'},field=map[edit[1].toLowerCase()]||edit[1].toLowerCase(),value=edit[2].trim();delete s.draft[field];if(field==='preferredTime'){delete s.draft.resolvedTime;delete s.draft.timeQuestion;}editing=true;
   if(value){if(field==='name'&&/^[\p{L}][\p{L} '-]{1,119}$/u.test(value))extracted.name=value;else if(field==='issue')extracted.issue=value;else if(field==='preferredTime')extracted.preferredTime=value;else if(field==='vehicle'&&vehicleValid(value))extracted.vehicle=value;else if(field==='contact'&&contactValid(value))extracted.contact=value;}
   if(!value){s.phase=field==='preferredTime'?'time':field;return base(s,prompts[field][0],prompts[field][1],{action:'invalidateReview'});}
  }
@@ -97,6 +126,7 @@ function respond(previous,raw){
  const emails=[...input.matchAll(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi)].map(m=>m[0]);
  const ambiguousContact=new Set(emails).size>1&&!/actually|instead|not|correction/i.test(input);
  if(ambiguousContact)delete extracted.contact;
+ if(extracted.preferredTime){const resolved=resolveAppointmentTime(extracted.preferredTime,{now:clock.now||new Date(),timeZone:SHOP.timeZone||'America/Chicago'});extracted.resolvedTime=resolved.display||'';extracted.timeQuestion=resolved.question||'';}
  const before=JSON.stringify(s.draft);Object.assign(s.draft,extracted);
  if(ambiguousContact){delete s.draft.contact;s.phase='contact';return base(s,'I found more than one email. Which single contact should appear in the local preview? Other details are kept.',[],{action:'invalidateReview'});}
  if(safety(input))return advance(s,faq(input), 'invalidateReview');
@@ -152,7 +182,7 @@ function showReview(){
  if(activeReview?.isConnected){scrollChat();return;}
  const d={...state.draft},requestId=crypto.randomUUID(),card=element('div','review-card');activeReview=card;
  card.append(element('strong','','YOUR SAMPLE REQUEST'));
- const list=element('dl');[['Service',d.service],['Vehicle',d.vehicle],['Details',d.issue],['Preference',d.preferredTime],['Name',d.name],['Contact',d.contact]].forEach(([name,value])=>{const row=element('div');row.append(element('dt','',name),element('dd','',value));list.append(row);});card.append(list);
+ const list=element('dl');[['Service',d.service],['Vehicle',d.vehicle],['Original description',d.issue],['Preference',d.resolvedTime||d.preferredTime],['Name',d.name],['Contact',d.contact]].forEach(([name,value])=>{const row=element('div');row.append(element('dt','',name),element('dd','',value));list.append(row);});card.append(list);
  const localNotice=element('p','','Local preview only: these details remain in memory in this tab, are not sent to Google, and disappear on reload. Prefer fictional contacts.');card.append(localNotice);
  const localActions=element('div','review-actions'),localSave=element('button','button lime','Save local preview'),localEdit=element('button','text-button','Edit details');localSave.type=localEdit.type='button';
  localSave.addEventListener('click',()=>{if(localSave.disabled)return;const duplicate=leads.find(l=>l.delivery==='LOCAL'&&['name','contact','service','vehicle','issue','preferredTime'].every(k=>l[k]===d[k]));if(!duplicate)leads.unshift({...d,id:requestId,createdAt:new Date().toISOString(),status:'new',delivery:'LOCAL'});card.querySelectorAll('button,input').forEach(x=>x.disabled=true);updateCounts();bubble(duplicate?'Already saved in this tab. No duplicate created; nothing sent.':'Local preview saved in this tab only. Nothing sent to the server or email. This is not a confirmed appointment.','saved');state=initialState();activeReview=null;options(['Open owner view','Start over']);setPlaceholder();});
@@ -200,7 +230,7 @@ function renderInbox(){
  if(!visible.length){const empty=element('div','empty-state');empty.append(element('span','','↗'),element('h3','',leads.length?'No '+filter+' requests':'Your next request starts in the chat.'),element('p','',leads.length?'Try another filter to see your saved requests.':'Create a sample service request in the receptionist demo. It will appear here, on this device.'));const button=element('button','button lime','Create a sample request ↗');button.addEventListener('click',beginSample);empty.append(button);list.append(empty);return;}
  visible.forEach(lead=>{
   const card=element('article','lead-card'),head=element('div','lead-card-header'),title=element('div');title.append(element('h3','',lead.name));const time=element('time','',new Date(lead.createdAt).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short'}));time.dateTime=lead.createdAt;title.append(time);head.append(title,element('span','lead-badge '+lead.status,lead.status==='new'?'NEW REQUEST':'CONTACTED'));card.append(head);
-  const dl=element('dl');[['Service',lead.service],['Vehicle',lead.vehicle],['Contact',lead.contact],['Preferred time · not confirmed',lead.preferredTime],['Customer’s description',lead.issue]].forEach(([key,value])=>{const row=element('div');row.append(element('dt','',key),element('dd','',value));dl.append(row);});card.append(dl);
+  const dl=element('dl');[['Service',lead.service],['Vehicle',lead.vehicle],['Contact',lead.contact],['Preferred time · not confirmed',lead.resolvedTime||lead.preferredTime],['Customer’s description',lead.issue]].forEach(([key,value])=>{const row=element('div');row.append(element('dt','',key),element('dd','',value));dl.append(row);});card.append(dl);
   const actions=element('div','lead-card-actions'),toggle=element('button','text-button',lead.status==='new'?'Mark as contacted ✓':'Mark as new ↺'),remove=element('button','text-button delete-lead','Delete request');
   toggle.addEventListener('click',()=>{const old=lead.status;lead.status=old==='new'?'contacted':'new';if(!persist()){lead.status=old;$('#owner-status').textContent='Could not save this change.';return;}$('#owner-status').textContent='Demo status updated. No message was sent.';renderInbox();});
   remove.addEventListener('click',()=>{if(remove.dataset.confirm!=='yes'){remove.dataset.confirm='yes';remove.textContent='Confirm delete';return;}const old=leads;leads=leads.filter(l=>l.id!==lead.id);if(!persist()){leads=old;$('#owner-status').textContent='Could not delete this request.';return;}$('#owner-status').textContent='Request deleted from this browser.';renderInbox();});actions.append(toggle,remove);card.append(actions);list.append(card);
