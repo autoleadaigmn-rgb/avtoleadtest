@@ -53,9 +53,9 @@ function extractDetails(raw){
  let vehicles=[...positive.matchAll(vr)].filter(v=>+v[1]>=1900&&+v[1]<=new Date().getFullYear()+2);
  if(vehicles.length===1||/actually|correction|instead|now drive/i.test(text)){m=vehicles.at(-1);if(m)d.vehicle=m[1]+' '+m[2]+' '+m[3];}
  if(m=positive.match(/\b(?:vehicle|car)\s*:\s*((?:19|20)\d{2}\s+[a-z][a-z0-9-]*\s+[a-z0-9-]+)\b/i))d.vehicle=m[1];
- const nr=/\b(?:my name is|name\s*[:=]|call me|i am|i'm)\s+([\p{L}][a-z'-]*(?:\s+[\p{L}][a-z'-]*){0,2}?)(?=\s*[,.;!]|\s+(?:and|my|i|with|email|phone|for|at|driving|here)\b|$)/giu;
+ const nr=/\b(?:my name is|name\s*[:=]|call me|i am|i'm)\s+([\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){0,2}?)(?=\s*[,.;!]|\s+(?:and|my|i|with|email|phone|for|at|driving|here)\b|$)/giu;
  const names=[...positive.matchAll(nr)].filter(x=>! /^(?:having|looking|available|free|ready|interested|not|driving|trying|wondering|getting|a|an|the|alex@example)$/i.test(x[1].split(' ')[0]));
- if(names.length)d.name=names.at(-1)[1].replace(/\b\w/g,c=>c.toUpperCase());
+ if(names.length)d.name=names.at(-1)[1].replace(/(^|\s)\p{L}/gu,c=>c.toUpperCase());
  const times=[...positive.matchAll(/\b(?:next\s+)?(?:weekday|week|month|monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight)(?:\s+(?:morning|afternoon|evening))?(?:\s+(?:at|after|before|around)\s+\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?)?|\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,?\s+20\d{2})?(?:\s+(?:at|after|before)\s+\d{1,2}(?::\d{2})?\s*(?:am|pm))?|\b20\d{2}-\d{2}-\d{2}(?:\s+(?:at\s+)?\d{1,2}:\d{2})?|\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?(?:\s+(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:am|pm))?|\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/gi)];
  if(/next weekday morning/i.test(positive))d.preferredTime='Next weekday morning';else if(/no preference|any time|anytime/i.test(positive))d.preferredTime='No preference';else if(times.length)d.preferredTime=times.map(x=>x[0]).join(' ').trim();
  if(/brakes? (?:squeal|squeak)|squeal.*stop/i.test(positive))d.issue='Brakes squeal when stopping';else if(/tire.*(?:losing|lose|low).*air|flat tire|puncture/i.test(positive))d.issue='Tire losing air';else if(/check.engine|engine light/i.test(positive))d.issue='Check engine light is on';else if(/routine service before a road trip/i.test(positive))d.issue='Routine service before a road trip';
@@ -85,12 +85,12 @@ function respond(previous,raw){
  let extracted=extractDetails(input),editing=false;
  if(answer&&isQuestion&&!Object.keys(extracted).length)return base(s,answer+(s.phase!=='idle'?'\n\nI’ve kept your request details.':''),s.phase==='idle'?STARTERS:(prompts[s.phase==='time'?'preferredTime':s.phase]?.[1]||['Edit details','Cancel']));
  if(edit){const map={car:'vehicle',description:'issue',problem:'issue',time:'preferredTime',email:'contact',phone:'contact'},field=map[edit[1].toLowerCase()]||edit[1].toLowerCase(),value=edit[2].trim();delete s.draft[field];editing=true;
-  if(value){if(field==='name'&&/^[\p{L}][\p{L} '-]{1,119}$/u.test(value))extracted.name=value;else if(field==='issue')extracted.issue=value.slice(0,300);else if(field==='preferredTime')extracted.preferredTime=value.slice(0,100);else if(field==='vehicle'&&vehicleValid(value))extracted.vehicle=value;else if(field==='contact'&&contactValid(value))extracted.contact=value;}
+  if(value){if(field==='name'&&/^[\p{L}][\p{L} '-]{1,119}$/u.test(value))extracted.name=value;else if(field==='issue')extracted.issue=value;else if(field==='preferredTime')extracted.preferredTime=value;else if(field==='vehicle'&&vehicleValid(value))extracted.vehicle=value;else if(field==='contact'&&contactValid(value))extracted.contact=value;}
   if(!value){s.phase=field==='preferredTime'?'time':field;return base(s,prompts[field][0],prompts[field][1],{action:'invalidateReview'});}
  }
  const plain=input.replace(/^use /i,'');if(!edit){if(s.phase==='vehicle'&&vehicleValid(plain)&&!extracted.vehicle&&plain.split(/\s+/).length<=5)extracted.vehicle=plain;
   if(s.phase==='name'&&!extracted.name&&/^[\p{L}][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]+){0,3}$/u.test(plain)&&!/(hello|unknown|whatever|cancel|banana|asdf)/i.test(plain))extracted.name=plain;
-  if(s.phase==='issue'&&!extracted.issue&&/brake|tire|oil|engine|noise|leak|battery|start|service|maintenance|vibrat|shak|air|light/i.test(plain)&&plain.length>=5)extracted.issue=plain.slice(0,300);}
+  if(s.phase==='issue'&&!extracted.issue&&/brake|tire|oil|engine|noise|leak|battery|start|service|maintenance|vibrat|shak|air|light/i.test(plain)&&plain.length>=5)extracted.issue=plain;}
  if(s.phase==='time'&&!extracted.preferredTime&&!Object.keys(extracted).length&&/^(?:after|before|around|at|on|between)\b/i.test(input))extracted.preferredTime=input;
  if(s.phase==='issue'&&!extracted.issue&&!/\?|^(?:hello|hi|thanks|unknown|whatever|asdf|purple banana)/i.test(input)&&input.length>=5)extracted.issue=input;
  if(!edit&&s.draft.service&&extracted.service&&s.phase!=='service'&&s.phase!=='idle')delete extracted.service;
@@ -212,7 +212,7 @@ $('#export-leads').addEventListener('click',()=>{if(!leads.length)return;const b
 $('#clear-leads').addEventListener('click',()=>{$('#clear-confirm').hidden=false;$('#cancel-clear').focus();});
 $('#cancel-clear').addEventListener('click',()=>$('#clear-confirm').hidden=true);
 $('#confirm-clear').addEventListener('click',()=>{const old=leads;leads=[];if(!persist()){leads=old;$('#owner-status').textContent='Could not clear browser storage.';return;}$('#clear-confirm').hidden=true;$('#owner-status').textContent='Demo requests cleared from this browser.';renderInbox();});
-window.addEventListener('storage',e=>{if(e.key===STORAGE){try{const value=JSON.parse(e.newValue||'[]');if(Array.isArray(value))leads=value.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&typeof x.contact==='string'&&['new','contacted'].includes(x.status)).slice(0,100);updateCounts();if($('#owner-dialog').open)renderInbox();}catch{}}});
+window.addEventListener('storage',e=>{if(e.key===STORAGE){try{const value=JSON.parse(e.newValue||'[]');if(Array.isArray(value))leads=leads.filter(x=>x.delivery==='LOCAL').concat(value.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&typeof x.contact==='string'&&['new','contacted'].includes(x.status)));updateCounts();if($('#owner-dialog').open)renderInbox();}catch{}}});
 applyShop(SHOP);updateCounts();start();loadShop().then(ok=>{welcome.text=SHOP.greeting+'\n\nLocal demo: typed details stay in this tab. Prefer fictional contacts. Only the separate fixed fictional server test can be transmitted with consent. A request is never a confirmed appointment.';if(state.phase==='idle'&&$('#messages').children.length===1)start();if(!ok)$('#chat-feedback').textContent='Using the built-in demo shop settings. Server settings could not be loaded.';});if(!storageAvailable)$('#chat-feedback').textContent='Local preview storage is unavailable. Server delivery can still be tested.';
 </script>
 </head>
