@@ -8,6 +8,7 @@
   "assets": {"directory": "public", "binding": "ASSETS", "run_worker_first": true},
   "vars": {
     "MODE": "TEST_ONLY",
+    "TEST_ONLY": "true",
     "MAIL_TRANSPORT": "SIMULATED",
     "REAL_DATA_APPROVED": "false",
     "PRIVACY_REVIEWED": "false",

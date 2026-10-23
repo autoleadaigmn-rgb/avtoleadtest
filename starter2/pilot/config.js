@@ -23,4 +23,4 @@ export function privateConfig(env){
  return c;
 }
 export function testEnabled(env){return env.MODE==='PILOT_TEST'&&env.TEST_ONLY==='true'&&env.REAL_DATA_APPROVED==='false'&&env.PRIVACY_REVIEWED==='false'&&['SIMULATED','RESEND_TEST'].includes(env.MAIL_TRANSPORT);}
-export function pilotEnabled(env){return testEnabled(env)||env.MODE==='PILOT'&&env.REAL_DATA_APPROVED==='true'&&env.MAIL_TRANSPORT==='RESEND'&&env.PRIVACY_REVIEWED==='true';}
+export function pilotEnabled(env){return testEnabled(env)||env.MODE==='PILOT'&&env.TEST_ONLY==='false'&&env.REAL_DATA_APPROVED==='true'&&env.MAIL_TRANSPORT==='RESEND'&&env.PRIVACY_REVIEWED==='true';}

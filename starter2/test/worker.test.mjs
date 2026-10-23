@@ -10,7 +10,7 @@ async function call(path,{method='GET',body,token,headers={}}={}){
  const r=await lab.mf.dispatchFetch(origin+path,{method,headers:{...(body?{'content-type':'application/json',origin}:{}),...(token?{authorization:'Bearer '+token}:{}),...headers},body:body?JSON.stringify(body):undefined});
  const data=await r.json();return {status:r.status,data,headers:r.headers};
 }
-async function payload(shop='bayline',overrides={}){return {...FIXTURES[shop],id:crypto.randomUUID(),website:'',consent:true,policy:POLICY,session:await signSession({shop,sid:crypto.randomUUID(),iat:Date.now()-2000,exp:Date.now()+3600000-2000},lab.env.SESSION_SECRET),...overrides};}
+async function payload(shop='bayline',overrides={}){const now=Date.now();return {...FIXTURES[shop],id:crypto.randomUUID(),website:'',consent:true,policy:POLICY,session:await signSession({shop,sid:crypto.randomUUID(),iat:now-2000,exp:now+3600000-2000},lab.env.SESSION_SECRET),...overrides};}
 const submit=(body,shop='bayline')=>call('/api/shops/'+shop+'/requests',{method:'POST',body});
 const count=async(db,table)=>(await db.prepare('SELECT count(*) AS n FROM '+table).first()).n;
 test('safety lock and no real mail configured',async()=>{const r=await call('/health');assert.equal(r.status,200);assert.equal(r.data.realMail,false);});
