@@ -9,7 +9,8 @@
  style.rel='stylesheet';style.href=new URL('/loader.css',base).href;
 
  const button=document.createElement('button');button.type='button';button.textContent='Chat · test demo';button.setAttribute('aria-expanded','false');
- const frame=document.createElement('iframe');frame.title='AutoLead test receptionist';frame.hidden=true;frame.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms');frame.setAttribute('referrerpolicy','no-referrer');
+ // A scripts+same-origin sandbox is ineffective for our own frame; cross-site isolation comes from the Worker origin and CSP.
+ const frame=document.createElement('iframe');frame.title='AutoLead test receptionist';frame.hidden=true;frame.setAttribute('referrerpolicy','no-referrer');
  const target=new URL('/widget.html',base);target.searchParams.set('shop',shop);target.searchParams.set('parent',location.origin);
  button.addEventListener('click',()=>{if(!frame.src)frame.src=target.href;frame.hidden=!frame.hidden;button.setAttribute('aria-expanded',String(!frame.hidden));button.textContent=frame.hidden?'Chat · test demo':'Close chat';});
  window.addEventListener('message',event=>{if(event.origin!==base.origin||event.source!==frame.contentWindow||event.data?.type!=='autolead-close')return;frame.hidden=true;button.setAttribute('aria-expanded','false');button.textContent='Chat · test demo';button.focus();});

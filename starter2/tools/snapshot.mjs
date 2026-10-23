@@ -4,7 +4,7 @@ import {resolve} from 'node:path';
 import {createLab} from './lab.mjs';
 import {exportState,exportLedger,restoreState} from './snapshots.mjs';
 const [action,shop='bayline',file='snapshots/bayline.json',ledgerFile='snapshots/bayline-ledger.json']=process.argv.slice(2);
-if(!['export','restore'].includes(action)||!['bayline','bayline-isolation'].includes(shop))throw Error('Usage: node tools/snapshot.mjs export|restore bayline snapshot.json latest-ledger.json');
+if(!['export','restore'].includes(action)||!['bayline','cedar-ridge'].includes(shop))throw Error('Usage: node tools/snapshot.mjs export|restore bayline snapshot.json latest-ledger.json');
 // No remote flag exists. Stop the local dev server first to avoid concurrent snapshot activity.
 const lab=await createLab({persist:resolve(action==='restore'?'.local/recovery':'.local/d1')});
 try{

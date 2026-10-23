@@ -6,3 +6,4 @@ build/
 *.log
 snapshots/
 test-results/
+wrangler.test-cloud.jsonc

@@ -1,4 +1,4 @@
-import {FIXTURE,DAY} from '../src/tenants.js';
+import {FIXTURES,DAY} from '../src/tenants.js';
 const fields={requests:['id','payload_hash','created_at','expires_at','payload','status','version'],outbox:['request_id','state','attempts','next_at','lease_until','lease_token','last_error','delivered_at'],simulated_deliveries:['request_id','delivered_at'],deletion_ledger:['request_id','deleted_at','expires_at']};
 export async function exportState(db,shop){
  const tables={};for(const table of Object.keys(fields))tables[table]=(await db.prepare('SELECT * FROM '+table).all()).results;
@@ -11,7 +11,7 @@ export async function restoreState(db,snapshot,latestLedger,shop,now=Date.now())
  const removed=new Set(latestLedger.deletions.map(r=>r.request_id));
  const live=new Set();const sql=[];
  for(const r of snapshot.tables.requests){
-  const p=JSON.parse(r.payload);for(const [k,v]of Object.entries(FIXTURE))if(p[k]!==v)throw Error('NON_FICTIONAL_BACKUP');
+  const p=JSON.parse(r.payload);for(const [k,v]of Object.entries(FIXTURES[shop]))if(p[k]!==v)throw Error('NON_FICTIONAL_BACKUP');
   if(removed.has(r.id)||r.expires_at<=now)continue;
   if(r.expires_at-r.created_at>90*DAY)throw Error('UNSAFE_RETENTION');
   live.add(r.id);sql.push(db.prepare('INSERT INTO requests('+fields.requests.join(',')+') VALUES(?,?,?,?,?,?,?)').bind(...fields.requests.map(k=>r[k])));

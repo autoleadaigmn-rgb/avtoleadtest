@@ -9,7 +9,8 @@
     "test": "node tools/build.mjs && node --test --test-concurrency=1 test/*.test.mjs",
     "dev": "node tools/dev.mjs",
     "check": "node tools/preflight.mjs",
-    "snapshot": "node tools/snapshot.mjs"
+    "snapshot": "node tools/snapshot.mjs",
+    "prepare:cloud-test": "node tools/prepare-cloud-test.mjs"
   },
   "devDependencies": {"esbuild": "0.25.12", "miniflare": "4.20260730.0", "wrangler": "4.152.0"}
 }

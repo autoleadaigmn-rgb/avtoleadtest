@@ -1,13 +1,14 @@
-import {DAY,FIXTURE,POLICY} from './tenants.js';
+import {DAY,FIXTURES,POLICY} from './tenants.js';
 import {problem,sha,rate,b64,unb64} from './security.js';
 import {resolveAppointmentTime} from '../public/appointment-time.js';
 export async function saveRequest(t,input,c,now){
  if(!input||typeof input!=='object'||Array.isArray(input))throw problem('INVALID_REQUEST');
- const allowed=['id','session','consent','policy','website',...Object.keys(FIXTURE)];
+ const fixture=FIXTURES[t.public.id];
+ const allowed=['id','session','consent','policy','website',...Object.keys(fixture)];
  if(Object.keys(input).some(k=>!allowed.includes(k)))throw problem('UNKNOWN_FIELD');
  if(input.website!==''||input.consent!==true||input.policy!==POLICY)throw problem('CONSENT_OR_SPAM',400);
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.id||''))throw problem('INVALID_ID');
- const payload={};for(const [k,v] of Object.entries(FIXTURE)){if(input[k]!==v)throw problem('FICTIONAL_FIXTURE_ONLY');payload[k]=v;}
+ const payload={};for(const [k,v] of Object.entries(fixture)){if(input[k]!==v)throw problem('FICTIONAL_FIXTURE_ONLY');payload[k]=v;}
  const hash=await sha(JSON.stringify(payload));
  // Retry lookup precedes timing/rate checks; the same persisted receipt is safe to return.
  if(await t.db.prepare('SELECT request_id FROM deletion_ledger WHERE request_id=? AND expires_at>?').bind(input.id,now).first())throw problem('REQUEST_GONE',410);

@@ -1,4 +1,4 @@
-import {TENANTS,FIXTURE,tenantFor} from './tenants.js';
+import {TENANTS,FIXTURES,tenantFor} from './tenants.js';
 import {problem,readJson,sameOrigin,signSession,session,rate,sha,owner} from './security.js';
 import {saveRequest,deliverDue,retention,listRequests} from './store.js';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8'}});
@@ -18,11 +18,11 @@ async function handle(request,env){
  const match=url.pathname.match(/^\/api\/(shops|owner)\/([a-z0-9-]+)\/([a-z-]+)(?:\/([0-9a-f-]+))?$/);
  if(!match){
   if(request.method!=='GET'||url.pathname.startsWith('/api/'))throw problem('NOT_FOUND',404);
-  if(url.pathname==='/widget.html'){
+  if(url.pathname==='/widget.html'||url.pathname==='/widget'){
    const t=tenantFor(env,url.searchParams.get('shop'));
-   return headers(await env.ASSETS.fetch(request),t.parents.join(' '));
+   return headers(await env.ASSETS.fetch(request),["'self'",...t.parents].join(' '));
   }
-  return env.ASSETS?env.ASSETS.fetch(request):json({error:'NOT_FOUND'},404);
+  return env.ASSETS?headers(await env.ASSETS.fetch(request)):json({error:'NOT_FOUND'},404);
  }
  const [,area,id,action,rid]=match,t=tenantFor(env,id);
  if(area==='owner'){
@@ -43,12 +43,12 @@ async function handle(request,env){
   }
   throw problem('NOT_FOUND',404);
  }
- if(request.method==='GET'&&action==='config')return json({shop:t.public,fixture:FIXTURE});
+ if(request.method==='GET'&&action==='config')return json({shop:t.public,fixture:FIXTURES[id]});
  if(request.method!=='POST')throw problem('NOT_FOUND',404);
  sameOrigin(request);
  const body=await readJson(request);
  if(action==='session'){
-  if(typeof body.parentOrigin!=='string'||!t.parents.includes(body.parentOrigin)||Object.keys(body).some(k=>k!=='parentOrigin'))throw problem('EMBED_ORIGIN_DENIED',403);
+  if(typeof body.parentOrigin!=='string'||!(t.parents.includes(body.parentOrigin)||body.parentOrigin===url.origin)||Object.keys(body).some(k=>k!=='parentOrigin'))throw problem('EMBED_ORIGIN_DENIED',403);
   // Trusted Cloudflare metadata in production. A missing IP shares the same conservative bucket.
   const ip=request.headers.get('cf-connecting-ip')||'unknown';
   const ipKey=await sha((env.SESSION_SECRET||'')+':'+Math.floor(now/86400000)+':'+ip);

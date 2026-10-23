@@ -1,0 +1,11 @@
+# Starter 2.0 continuation state
+
+Branch: `starter-2-test`; original published commit `6bb4d9d`. The current uncommitted changes are only under `starter2/`. Never merge to `main` or alter the GitHub Pages demo.
+
+Cloudflare account is authorized. Existing free resources: Worker `autolead-starter2-test` at https://autolead-starter2-test.autolead-ai-gmn.workers.dev, D1 databases `starter2-bayline-test` and `starter2-cedar-ridge-test`. Both migrations have been applied. Do not create them again. The ignored account-specific config is `wrangler.test-cloud.jsonc`; server secret is stored only in Cloudflare.
+
+As of 2026-10-23 10:36 UTC the temporary failure setting has been removed and the Worker redeployed with the normal `*/15 * * * *` schedule. Printed bindings retain `TEST_ONLY` and `SIMULATED`. Cloudflare documents that Cron Trigger schedule changes can take up to 15 minutes to propagate; do not interpret the first missed one-minute trigger as a code failure.
+
+Completed: local 32/32 tests and 27 dialogues; public HTTPS health, two fictional shop configs, fixed-fictional request save, duplicate receipt, cross-shop session denial, arbitrary-contact denial, browser widget on 1280px and 390px, owner panel fail-closed. Cloud D1 had 3 Bayline and 1 Cedar Ridge simulated deliveries after the original 15-minute cron. The owner panel cannot display records in cloud until Google OAuth client ID and verified owner-subject membership are configured; do not bypass this lock.
+
+In progress: verify the next scheduled simulation and deletion of an expired fictional Bayline record. The pending Bayline receipt is `0b69ad76-1e79-4602-921c-ce41fa545483`. Expired test receipt is `d4e4f9fd-6370-4799-81a1-70d0a4d2c763`. The temporary `SIMULATE_FAILURES=1` experiment did not run before it was reverted; local tests cover retries. Read only counts/state via Wrangler D1; do not print stored payloads. Then rerun checks, commit and push only `starter-2-test`.

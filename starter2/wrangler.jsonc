@@ -15,6 +15,6 @@
   },
   "d1_databases": [
     {"binding": "BAYLINE_DB", "database_name": "starter2-bayline-test", "database_id": "00000000-0000-0000-0000-000000000001", "migrations_dir": "migrations", "remote": false},
-    {"binding": "ISOLATION_DB", "database_name": "starter2-isolation-test", "database_id": "00000000-0000-0000-0000-000000000002", "migrations_dir": "migrations", "remote": false}
+    {"binding": "ISOLATION_DB", "database_name": "starter2-cedar-ridge-test", "database_id": "00000000-0000-0000-0000-000000000002", "migrations_dir": "migrations", "remote": false}
   ]
 }
