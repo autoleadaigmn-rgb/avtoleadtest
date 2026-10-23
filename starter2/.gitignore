@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+.local/
+build/
+.dev.vars*
+*.log
+snapshots/
+test-results/

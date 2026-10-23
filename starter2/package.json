@@ -1,0 +1,15 @@
+{
+  "name": "autolead-starter2-test",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {"node": ">=22"},
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test": "node tools/build.mjs && node --test --test-concurrency=1 test/*.test.mjs",
+    "dev": "node tools/dev.mjs",
+    "check": "node tools/preflight.mjs",
+    "snapshot": "node tools/snapshot.mjs"
+  },
+  "devDependencies": {"esbuild": "0.25.12", "miniflare": "4.20260730.0", "wrangler": "4.152.0"}
+}

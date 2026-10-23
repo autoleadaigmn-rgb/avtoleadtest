@@ -1,0 +1,34 @@
+import assert from 'node:assert/strict';import {respond as respondCore,initialState,extractDetails} from './fixture-shop.mjs';
+const respond=(s,t)=>respondCore(s,t,{now:new Date('2026-10-22T12:00:00Z')});
+let count=0;const run=(label,messages,check)=>{let r;let state=initialState();for(const m of messages){r=respond(state,m);state=r.state;}check(state,r);count++;console.log('PASS '+label);};
+const full="My name is Jordan Lee; my 2020 Honda Civic makes a rattling noise; Friday at 3 pm; jordan@example.net";
+run('all fields in one message',[full],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.name,'Jordan Lee');assert.equal(s.draft.contact,'jordan@example.net');assert.equal(s.draft.vehicle,'2020 Honda Civic');assert.match(s.draft.issue,/rattling/);assert.match(s.draft.preferredTime,/Friday/);});
+run('arbitrary order',['jordan@example.net; Friday at 3 pm; my 2020 Honda Civic makes a rattling noise; name: Jordan Lee'],s=>assert.equal(s.phase,'review'));
+run('actual vehicle correction',[full,'Actually, my car is a 2021 Ford Focus, not a Toyota'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.vehicle,'2021 Ford Focus');assert.equal(s.draft.contact,'jordan@example.net');});
+run('name correction',[full,'Change my name to Morgan Test'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.name,'Morgan Test');});
+run('time correction',[full,'Change time to November 14, 2026 at 10 am'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.preferredTime,'November 14, 2026 at 10 am');});
+run('cancel',[full,'Cancel'],s=>assert.deepEqual(s.draft,{}));
+run('partial only missing',["My 2020 Honda Civic has a check engine light",'name: Jo Test; email jo@example.net'],s=>{assert.equal(s.phase,'time');assert.equal(s.draft.name,'Jo Test');assert.equal(s.draft.contact,'jo@example.net');});
+run('small talk',['Hello','How is the weather?'],s=>assert.equal(s.phase,'idle'));
+run('long message',[('Background information. '.repeat(80))+full],s=>assert.equal(s.phase,'review'));
+run('reset then second request',[full,'Start over',"Name: Casey Demo; 2022 Subaru Outback has an oil leak; tomorrow morning; casey@example.org"],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.name,'Casey Demo');assert.equal(s.draft.contact,'casey@example.org');});
+run('numeric amount not phone',['I paid 2020 dollars for 4 tires'],s=>{assert.equal(s.draft.contact,undefined);assert.equal(s.draft.vehicle,undefined);});
+run('formatted phone',['Name: Alex Test; 2018 Volvo XC90 has a battery problem; Monday; (713) 555-0123'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.contact,'(713) 555-0123');});
+run('compact labeled phone',['Name: Alex Test; 2018 Volvo XC90 has a battery problem; Monday; phone: 7135550123'],s=>assert.equal(s.phase,'review'));
+run('ISO date',['Name: Alex Test; 2018 Volvo XC90 has a battery problem; 2026-11-12 at 14:30; alex@example.net'],s=>{assert.equal(s.phase,'review');assert.match(s.draft.preferredTime,/2026-11-12/);});
+run('unknown make labeled',['Name: Alex Test; vehicle: 2020 Example Model; issue: unusual rattle; No preference; alex@example.net'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.vehicle,'2020 Example Model');});
+run('safety retains details',['Name: Alex Test; my 2020 Honda Civic brakes failed; tomorrow; alex@example.net; can I drive?'],(s,r)=>{assert.match(r.text,/Avoid driving/);assert.equal(s.draft.contact,'alex@example.net');});
+run('FAQ preserves draft',[full,'What are your hours?'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.name,'Jordan Lee');});
+run('unknown preserves draft',[full,'purple banana spaceship'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.vehicle,'2020 Honda Civic');});
+run('explicit service separate from concern',['Brake inspection','2019 Toyota Camry','Issue: routine service before a road trip','No preference','Use Alex Demo','Use alex@example.com'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.service,'Brake inspection');});
+run('html treated as text',['Name: Alex Test; 2020 Honda Civic has a rattle; Friday; alex@example.net; <script>alert(1)</script>'],s=>assert.equal(s.phase,'review'));
+run('no invented name',['I am looking for help with my 2020 Honda Civic battery tomorrow; alex@example.net'],s=>{assert.equal(s.draft.name,undefined);assert.equal(s.phase,'name');});
+run('date not vehicle',['October 24, 2026 at 3 pm'],s=>{assert.equal(s.draft.vehicle,undefined);assert.equal(s.draft.contact,undefined);});
+run('ambiguous two vehicles',['I have a 2020 Honda Civic and a 2022 Toyota Corolla with a rattle'],s=>assert.equal(s.draft.vehicle,undefined));
+run('other contact correction',[full,'Actually my email is corrected@example.org'],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.contact,'corrected@example.org');});
+run('accented explicit name',["My name is José García; my 2020 Honda Civic has a rattle; Friday; jose@example.net"],s=>{assert.equal(s.phase,'review');assert.equal(s.draft.name,'José García');});
+run('ambiguous contacts keep other details',[full,'Email: first@example.net or second@example.org'],s=>{assert.equal(s.phase,'contact');assert.equal(s.draft.vehicle,'2020 Honda Civic');assert.equal(s.draft.contact,undefined);});
+run('long issue correction preserved',[full,'Change issue to '+('The dashboard intermittently rattles. '.repeat(15))],s=>{assert(s.draft.issue.length>300);assert.equal(s.phase,'review');});
+console.log(count+' varied dialogue tests passed. No network or email.');
+
+

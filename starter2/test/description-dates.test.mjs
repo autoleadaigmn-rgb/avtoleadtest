@@ -1,0 +1,19 @@
+import assert from 'node:assert/strict';import {respond,initialState,inferService,extractDetails} from './fixture-shop.mjs';import {resolveAppointmentTime as resolve} from '../public/appointment-time.js';
+const now=new Date('2026-10-23T12:00:00Z'),zone='America/Chicago',opts={now,timeZone:zone};
+const original="Hi! My name is Michael Johnson. I have a 2021 Ford F-150 that makes a strange noise when braking. I'd like to bring it in next Monday around 9 AM. You can contact me at michael@example.com. Can you help?";
+let r=respond(initialState(),original,{now});assert.equal(r.state.phase,'review');assert.equal(r.state.draft.service,'Brake inspection');assert.equal(r.state.draft.issue,'I have a 2021 Ford F-150 that makes a strange noise when braking');assert.equal(r.state.draft.vehicle,'2021 Ford F-150');assert.equal(r.state.draft.name,'Michael Johnson');assert.equal(r.state.draft.contact,'michael@example.com');assert.equal(r.state.draft.resolvedTime,'2026-10-26 · around 9:00 AM (America/Chicago)');
+for(const concern of ['There is a grinding noise while braking','A squeak when I press the brake pedal','The car shakes when braking','Noise when I apply the brakes']){assert.equal(inferService(concern),'Brake inspection');assert.equal(extractDetails(concern).issue,concern);}
+assert.equal(extractDetails('My car is not starting and there is a clicking noise').issue,'My car is not starting and there is a clicking noise');
+assert.equal(extractDetails('The engine is not overheating, but it makes a noise').issue,'The engine is not overheating, but it makes a noise');
+assert.equal(inferService('The cabin fan makes a noise'),'');assert(!/pads|rotors|caliper|replacement/i.test(r.text));
+r=respond(r.state,'Actually, my car is a 2020 Honda Civic, not a Toyota',{now});assert.equal(r.state.draft.vehicle,'2020 Honda Civic');assert.equal(r.state.draft.issue,'I have a 2021 Ford F-150 that makes a strange noise when braking'); // Original account, not rewritten history.
+assert.equal(resolve('tomorrow at 9 AM',opts).date,'2026-10-24');assert.equal(resolve('day after tomorrow at 9 AM',opts).date,'2026-10-25');
+assert.equal(resolve('today at 9 AM',{...opts,now:new Date('2026-10-24T02:00:00Z')}).date,'2026-10-23'); // UTC Saturday, Houston Friday.
+assert.equal(resolve('tomorrow at 9 AM',{...opts,now:new Date('2026-03-08T05:30:00Z')}).date,'2026-03-08'); // DST boundary; local calendar arithmetic.
+assert.equal(resolve('tomorrow at 9 AM',{...opts,now:new Date('2026-11-01T04:30:00Z')}).date,'2026-11-01');
+assert.equal(resolve('tomorrow at 9 AM',{...opts,now:new Date('2026-12-31T18:00:00Z')}).date,'2027-01-01');
+assert(resolve('next week',opts).question);assert(resolve('Monday or Tuesday at 9 AM',opts).question);assert(resolve('Friday at 9 AM',opts).question);assert(resolve('11/12 at 9 AM',opts).question);assert(resolve('November 12 at 9 AM',opts).question);assert(resolve('next Monday at 9',opts).question);assert(resolve('2026-02-30 at 9 AM',opts).question);assert(resolve('2026-10-26 at 25:99',opts).question);
+assert.equal(resolve('2026-10-26 at 14:30',opts).display,'2026-10-26 · 14:30 (America/Chicago)');assert.equal(resolve('No preference',opts).display,'No preference');assert(resolve('tomorrow',{...opts,timeZone:'Invalid/Zone'}).question);
+r=respond(initialState(),original.replace('next Monday around 9 AM','next week'),{now});assert.equal(r.state.phase,'time');assert.equal(r.state.draft.name,'Michael Johnson');assert.equal(r.state.draft.contact,'michael@example.com');r=respond(r.state,'2026-10-26 around 9 AM',{now});assert.equal(r.state.phase,'review');assert.equal(r.state.draft.resolvedTime,'2026-10-26 · around 9:00 AM (America/Chicago)');
+console.log('PASS: verbatim concern, braking categories, negation, no diagnosis, original message, Houston dates, UTC midnight, DST, year rollover, invalid/ambiguous dates and clarification round trip.');
+
